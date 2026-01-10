@@ -37,6 +37,12 @@ export class User {
   @Column({ name: 'last_login_at', nullable: true })
   lastLoginAt: Date;
 
+  @Column({ name: 'profile_image', nullable: true })
+  profileImage: string;
+
+  @Column({ name: 'display_name', length: 50, nullable: true })
+  displayName: string;
+
   @CreateDateColumn({ name: 'created_at' })
   createdAt: Date;
 
