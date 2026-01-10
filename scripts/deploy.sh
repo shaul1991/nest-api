@@ -90,7 +90,9 @@ wait_for_health() {
     echo -e "${YELLOW}Waiting for health check on port ${port}...${NC}"
 
     while [ ${attempt} -le ${max_attempts} ]; do
-        if curl -sf "http://localhost:${port}/health/live" > /dev/null 2>&1; then
+        # Try localhost first (host execution), then host.docker.internal (container execution)
+        if curl -sf "http://localhost:${port}/health/live" > /dev/null 2>&1 || \
+           curl -sf "http://host.docker.internal:${port}/health/live" > /dev/null 2>&1; then
             echo -e "${GREEN}Health check passed!${NC}"
             return 0
         fi
@@ -103,39 +105,16 @@ wait_for_health() {
     return 1
 }
 
-# Function to update Caddy configuration
-update_caddy_upstream() {
-    local port=$1
-    local temp_file=$(mktemp)
-
-    echo -e "${YELLOW}Updating Caddy upstream to port ${port}...${NC}"
-
-    # More specific replacement for our domain (exact match)
-    if grep -q "^${DOMAIN} {" "${CADDY_CONFIG}"; then
-        # Use awk for precise replacement - exact domain match
-        awk -v domain="${DOMAIN}" -v port="${port}" '
-        BEGIN { in_block = 0 }
-        $0 == domain " {" { in_block = 1 }
-        in_block && /reverse_proxy localhost:[0-9]+/ {
-            sub(/localhost:[0-9]+/, "localhost:" port)
-        }
-        /^}/ && in_block { in_block = 0 }
-        { print }
-        ' "${CADDY_CONFIG}" > "${temp_file}"
-        mv "${temp_file}" "${CADDY_CONFIG}"
-        # Preserve file permissions
-        chmod 644 "${CADDY_CONFIG}"
-    fi
-
-    # Reload Caddy - try multiple methods
+# Function to reload Caddy configuration
+reload_caddy() {
     echo "Reloading Caddy..."
-    
+
     # Method 1: Try systemctl (works on host)
     if command -v systemctl &> /dev/null && systemctl reload caddy 2>/dev/null; then
         echo -e "${GREEN}Caddy reloaded via systemctl${NC}"
         return 0
     fi
-    
+
     # Method 2: Try Caddy API via host.docker.internal (works from container)
     if curl -sf -X POST "http://host.docker.internal:2019/load" \
         -H "Content-Type: text/caddyfile" \
@@ -143,7 +122,7 @@ update_caddy_upstream() {
         echo -e "${GREEN}Caddy reloaded via API${NC}"
         return 0
     fi
-    
+
     # Method 3: Try Caddy API via localhost (fallback)
     if curl -sf -X POST "http://localhost:2019/load" \
         -H "Content-Type: text/caddyfile" \
@@ -151,15 +130,65 @@ update_caddy_upstream() {
         echo -e "${GREEN}Caddy reloaded via localhost API${NC}"
         return 0
     fi
-    
+
     # Method 4: Try caddy reload command
     if command -v caddy &> /dev/null && caddy reload --config "${CADDY_CONFIG}" 2>/dev/null; then
         echo -e "${GREEN}Caddy reloaded via caddy command${NC}"
         return 0
     fi
-    
+
     echo -e "${YELLOW}Warning: Could not reload Caddy automatically. Please reload manually: sudo systemctl reload caddy${NC}"
     return 0
+}
+
+# Function to update Caddy configuration (header-based routing with DEFAULT_SLOT)
+update_caddy_upstream() {
+    local target_slot=$1
+    local port=$2
+    local temp_file=$(mktemp)
+
+    echo -e "${YELLOW}Updating Caddy default slot to ${target_slot} (port ${port})...${NC}"
+
+    # New Caddyfile format: Update DEFAULT_SLOT comment and default handle block
+    awk -v domain="${DOMAIN}" -v slot="${target_slot}" -v port="${port}" '
+    BEGIN { in_domain = 0; in_default_handle = 0; handle_depth = 0 }
+
+    # Detect domain block start
+    $0 ~ domain " \\{" { in_domain = 1 }
+
+    # Detect default handle block (handle without named matcher)
+    in_domain && /^[[:space:]]*handle[[:space:]]*\{[[:space:]]*$/ {
+        in_default_handle = 1
+        handle_depth = 1
+    }
+
+    # Update DEFAULT_SLOT comment in default handle block
+    in_default_handle && /# DEFAULT_SLOT:/ {
+        sub(/# DEFAULT_SLOT:[a-z]+/, "# DEFAULT_SLOT:" slot)
+    }
+
+    # Update reverse_proxy port in default handle block
+    in_default_handle && /reverse_proxy localhost:[0-9]+/ {
+        sub(/localhost:[0-9]+/, "localhost:" port)
+    }
+
+    # Track nested blocks
+    in_default_handle && /\{/ { handle_depth++ }
+    in_default_handle && /\}/ {
+        handle_depth--
+        if (handle_depth == 0) in_default_handle = 0
+    }
+
+    # Detect domain block end
+    /^}/ && in_domain && !in_default_handle { in_domain = 0 }
+
+    { print }
+    ' "${CADDY_CONFIG}" > "${temp_file}"
+
+    mv "${temp_file}" "${CADDY_CONFIG}"
+    chmod 644 "${CADDY_CONFIG}"
+
+    reload_caddy
 }
 
 # Function to cleanup old images
@@ -237,7 +266,7 @@ main() {
 
     # Step 4: Update Caddy upstream
     echo -e "${YELLOW}Step 4: Switching traffic...${NC}"
-    update_caddy_upstream "${TARGET_PORT}"
+    update_caddy_upstream "${TARGET_SLOT}" "${TARGET_PORT}"
     echo ""
 
     # Step 5: Update active slot state
