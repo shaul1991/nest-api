@@ -1,0 +1,37 @@
+# Dependencies
+/node_modules
+
+# Build
+/dist
+
+# Environment files (keep .env.example)
+.env
+.env.local
+.env.dev
+.env.production
+.env.*.local
+
+# IDE
+.idea
+.vscode
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+logs
+*.log
+npm-debug.log*
+
+# Test
+/coverage
+/.nyc_output
+
+# Docker volumes
+/data
+
+# Misc
+*.tsbuildinfo

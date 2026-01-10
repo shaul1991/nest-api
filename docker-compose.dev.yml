@@ -1,0 +1,40 @@
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: nest-api:dev
+    container_name: nest-api-app-dev
+    restart: unless-stopped
+    ports:
+      - "3101:3000"
+    environment:
+      - NODE_ENV=development
+      - PORT=3000
+      - DATABASE_HOST=postgres
+      - DATABASE_PORT=5432
+      - DATABASE_NAME=${DATABASE_NAME}
+      - DATABASE_USER=${DATABASE_USER}
+      - DATABASE_PASSWORD=${DATABASE_PASSWORD}
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - REDIS_PASSWORD=${REDIS_PASSWORD}
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+  postgres:
+    container_name: nest-api-postgres-dev
+    ports:
+      - "5435:5432"
+
+  redis:
+    container_name: nest-api-redis-dev
+    ports:
+      - "6382:6379"
+
+networks:
+  default:
+    name: nest-api-dev
