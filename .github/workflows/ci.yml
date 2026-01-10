@@ -253,7 +253,7 @@ jobs:
                         "emoji": true
                       },
                       "style": "primary",
-                      "url": "${{ secrets.JENKINS_URL }}/job/홈%20서버/job/nest-api-prod/build?token=${{ secrets.JENKINS_BUILD_TOKEN }}",
+                      "url": "https://github.com/${{ github.repository }}/actions/workflows/deploy-prod.yml",
                       "action_id": "deploy_prod"
                     },
                     {
