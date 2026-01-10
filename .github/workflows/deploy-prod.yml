@@ -47,66 +47,54 @@ jobs:
               ]
             }'
 
-      - name: Trigger Jenkins Deployment
-        run: |
-          echo "Triggering Jenkins job nest-api-prod"
+      - name: Trigger Jenkins Deployment via SSH
+        uses: appleboy/ssh-action@v1.0.3
+        env:
+          JENKINS_USER: ${{ secrets.JENKINS_USER }}
+          JENKINS_API_TOKEN: ${{ secrets.JENKINS_API_TOKEN }}
+        with:
+          host: ${{ secrets.SSH_HOST }}
+          username: ${{ secrets.SSH_USER }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          envs: JENKINS_USER,JENKINS_API_TOKEN
+          script: |
+            echo "Triggering Jenkins job nest-api-prod via localhost..."
 
-          # Try without CSRF first (if CSRF is disabled in Jenkins)
-          HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" -X POST \
-            -u "${{ secrets.JENKINS_USER }}:${{ secrets.JENKINS_API_TOKEN }}" \
-            "${{ secrets.JENKINS_URL }}/job/홈%20서버/job/nest-api-prod/build")
+            # Jenkins localhost URL (bypasses Cloudflare)
+            JENKINS_LOCAL="http://localhost:8080"
 
-          if [ "$HTTP_CODE" = "201" ] || [ "$HTTP_CODE" = "200" ]; then
-            echo "Build triggered successfully (HTTP $HTTP_CODE)"
-            exit 0
-          fi
+            # Try without CSRF first
+            HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" -X POST \
+              -u "${JENKINS_USER}:${JENKINS_API_TOKEN}" \
+              "${JENKINS_LOCAL}/job/홈%20서버/job/nest-api-prod/build")
 
-          # If 403, try with CSRF crumb
-          if [ "$HTTP_CODE" = "403" ]; then
-            echo "Got 403, trying with CSRF crumb..."
+            if [ "$HTTP_CODE" = "201" ] || [ "$HTTP_CODE" = "200" ]; then
+              echo "Build triggered successfully (HTTP $HTTP_CODE)"
+              exit 0
+            fi
 
-            CRUMB_RESPONSE=$(curl -s -u "${{ secrets.JENKINS_USER }}:${{ secrets.JENKINS_API_TOKEN }}" \
-              "${{ secrets.JENKINS_URL }}/crumbIssuer/api/json")
+            # If 403, try with CSRF crumb
+            if [ "$HTTP_CODE" = "403" ]; then
+              echo "Got 403, trying with CSRF crumb..."
 
-            echo "CSRF Response (first 200 chars): ${CRUMB_RESPONSE:0:200}"
-
-            # Check if response is JSON
-            if echo "$CRUMB_RESPONSE" | jq -e . >/dev/null 2>&1; then
-              CRUMB=$(echo "$CRUMB_RESPONSE" | jq -r '.crumb // empty')
+              CRUMB=$(curl -s -u "${JENKINS_USER}:${JENKINS_API_TOKEN}" \
+                "${JENKINS_LOCAL}/crumbIssuer/api/json" | jq -r '.crumb // empty')
 
               if [ -n "$CRUMB" ]; then
                 curl -X POST \
-                  -u "${{ secrets.JENKINS_USER }}:${{ secrets.JENKINS_API_TOKEN }}" \
+                  -u "${JENKINS_USER}:${JENKINS_API_TOKEN}" \
                   -H "Jenkins-Crumb: $CRUMB" \
-                  "${{ secrets.JENKINS_URL }}/job/홈%20서버/job/nest-api-prod/build" \
+                  "${JENKINS_LOCAL}/job/홈%20서버/job/nest-api-prod/build" \
                   --fail --show-error
                 echo "Build triggered with CSRF crumb"
               else
-                echo "CSRF crumb is empty"
+                echo "Failed to get CSRF crumb"
                 exit 1
               fi
             else
-              echo "CSRF response is not JSON. Jenkins CSRF might be disabled or auth failed."
-              echo "Trying buildWithParameters endpoint..."
-
-              # Try alternative endpoint
-              HTTP_CODE2=$(curl -s -o /dev/null -w "%{http_code}" -X POST \
-                -u "${{ secrets.JENKINS_USER }}:${{ secrets.JENKINS_API_TOKEN }}" \
-                "${{ secrets.JENKINS_URL }}/job/홈%20서버/job/nest-api-prod/buildWithParameters")
-
-              if [ "$HTTP_CODE2" = "201" ] || [ "$HTTP_CODE2" = "200" ]; then
-                echo "Build triggered via buildWithParameters (HTTP $HTTP_CODE2)"
-                exit 0
-              else
-                echo "buildWithParameters also failed (HTTP $HTTP_CODE2)"
-                echo "Jenkins might require different authentication or permissions"
-                exit 1
-              fi
+              echo "Unexpected HTTP code: $HTTP_CODE"
+              exit 1
             fi
-          else
-            echo "Unexpected HTTP code: $HTTP_CODE"
-            exit 1
-          fi
 
       - name: Notify on Failure
         if: failure()
