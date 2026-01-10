@@ -31,6 +31,7 @@ describe('Chat Module E2E Tests', () => {
   let jwtService: JwtService;
   let configService: ConfigService;
   let port: number;
+  let activeClients: ClientSocket[] = [];
 
   const testUser = {
     email: 'e2euser@example.com',
@@ -88,11 +89,14 @@ describe('Chat Module E2E Tests', () => {
       extraHeaders['cookie'] = `guest_id=${guestId}`;
     }
 
-    return io(`http://localhost:${port}/chat`, {
+    const client = io(`http://localhost:${port}/chat`, {
       transports: ['websocket'],
       auth: token ? { token: `Bearer ${token}` } : undefined,
       extraHeaders,
     });
+
+    activeClients.push(client);
+    return client;
   };
 
   // Helper function for waiting events (used in some test scenarios)
@@ -210,6 +214,14 @@ describe('Chat Module E2E Tests', () => {
   });
 
   beforeEach(async () => {
+    // 활성 소켓 정리
+    activeClients.forEach((client) => {
+      if (client.connected) {
+        client.disconnect();
+      }
+    });
+    activeClients = [];
+
     await participantRepository.query('DELETE FROM chat_participants');
     await messageRepository.query('DELETE FROM chat_messages');
     await roomRepository.query('DELETE FROM chat_rooms');

@@ -176,15 +176,19 @@ export class ChatGateway
         );
       }
 
-      // 닉네임 업데이트 (게스트인 경우)
+      // 닉네임 업데이트 (dto.nickname이 제공된 경우)
       let nickname = data.nickname;
-      if (!data.isAuthenticated && dto.nickname) {
+      if (dto.nickname) {
         nickname = dto.nickname;
         data.nickname = nickname;
-        await this.chatRedisService.updateGuestNickname(
-          data.guestId!,
-          nickname,
-        );
+
+        // 게스트인 경우 Redis 업데이트
+        if (!data.isAuthenticated && data.guestId) {
+          await this.chatRedisService.updateGuestNickname(
+            data.guestId,
+            nickname,
+          );
+        }
       }
 
       // 채팅방 입장

@@ -1,6 +1,8 @@
 import { Injectable, OnModuleDestroy, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import Redis from 'ioredis';
+import { SocketData } from './interfaces/socket-data.interface';
+import { ParticipantType } from './interfaces/participant-type.enum';
 
 export interface GuestSession {
   guestId: string;
@@ -8,7 +10,7 @@ export interface GuestSession {
   createdAt: string;
 }
 
-export interface SocketData {
+interface RedisSocketData {
   participantType: 'user' | 'guest';
   userId?: string;
   guestId?: string;
@@ -112,7 +114,10 @@ export class ChatRedisService implements OnModuleDestroy {
   }
 
   // 소켓 연결 정보 (24시간)
-  async setSocketConnection(socketId: string, data: SocketData): Promise<void> {
+  async setSocketConnection(
+    socketId: string,
+    data: RedisSocketData,
+  ): Promise<void> {
     await this.redis.setex(
       `chat:socket:${socketId}`,
       24 * 60 * 60,
@@ -122,7 +127,17 @@ export class ChatRedisService implements OnModuleDestroy {
 
   async getSocketConnection(socketId: string): Promise<SocketData | null> {
     const data = await this.redis.get(`chat:socket:${socketId}`);
-    return data ? (JSON.parse(data) as SocketData) : null;
+    if (!data) return null;
+
+    const parsed = JSON.parse(data) as RedisSocketData;
+    return {
+      ...parsed,
+      participantType:
+        parsed.participantType === 'user'
+          ? ParticipantType.USER
+          : ParticipantType.GUEST,
+      currentRooms: new Set(parsed.currentRooms),
+    };
   }
 
   async deleteSocketConnection(socketId: string): Promise<void> {
