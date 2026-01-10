@@ -85,8 +85,8 @@ cleanup_legacy_containers() {
 reload_caddy() {
     echo "Reloading Caddy..."
 
-    # Method 1: Try systemctl (works on host)
-    if command -v systemctl &> /dev/null && systemctl reload caddy 2>/dev/null; then
+    # Method 1: Try systemctl with sudo (works on host)
+    if command -v systemctl &> /dev/null && sudo systemctl reload caddy 2>/dev/null; then
         echo -e "${GREEN}Caddy reloaded via systemctl${NC}"
         return 0
     fi
