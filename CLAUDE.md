@@ -17,7 +17,7 @@ NestJS 기반 API 서버로, Blue-Green 무중단 배포를 지원합니다.
 
 ## 디렉토리 구조
 ```
-/opt/nest-api/
+/opt/projects/nest-api/
 ├── src/                    # 소스 코드
 ├── scripts/deploy.sh       # Blue-Green 배포 스크립트
 ├── docker-compose.blue-green.yml
@@ -31,12 +31,12 @@ NestJS 기반 API 서버로, Blue-Green 무중단 배포를 지원합니다.
 
 ### Dev 환경 배포
 ```bash
-cd /opt/nest-api && ./scripts/deploy.sh dev
+cd /opt/projects/nest-api && ./scripts/deploy.sh dev
 ```
 
 ### Prod 환경 배포
 ```bash
-cd /opt/nest-api && ./scripts/deploy.sh prod
+cd /opt/projects/nest-api && ./scripts/deploy.sh prod
 ```
 
 ## 컨테이너 관리
@@ -48,19 +48,19 @@ docker ps --filter "name=nest-api"
 
 ### 로그 확인
 ```bash
-# Dev
-docker logs -f nest-api-blue-dev
-docker logs -f nest-api-green-dev
+# Dev (컨테이너 이름은 자동 생성됨)
+docker logs -f nest-api-dev-app-blue-1
+docker logs -f nest-api-dev-app-green-1
 
 # Prod
-docker logs -f nest-api-blue-prod
-docker logs -f nest-api-green-prod
+docker logs -f nest-api-prod-app-blue-1
+docker logs -f nest-api-prod-app-green-1
 ```
 
 ### 활성 슬롯 확인
 ```bash
-cat /opt/nest-api/.active-slot-dev   # Dev
-cat /opt/nest-api/.active-slot-prod  # Prod
+cat /opt/projects/nest-api/.active-slot-dev   # Dev
+cat /opt/projects/nest-api/.active-slot-prod  # Prod
 ```
 
 ## 헬스체크
