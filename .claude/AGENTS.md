@@ -4,6 +4,26 @@
 
 이 프로젝트는 직군별/역할별/작업별로 구조화된 Agent 시스템을 사용합니다.
 
+## 주요 명령어
+
+### /new-feature
+
+새로운 기능 개발 시 모든 팀이 협력하여 계획을 수립하는 오케스트레이터입니다.
+
+```bash
+/new-feature                    # 대화형으로 기능 정보 입력
+/new-feature 파일 업로드 기능    # 기능명 직접 지정
+```
+
+**워크플로우:**
+1. 기능 요구사항 수집
+2. 코드베이스 탐색
+3. 팀별 병렬 논의 (Backend, DevOps, QA, Security)
+4. 종합 계획 수립
+5. 문서 생성 (`docs/features/<기능명>/`)
+
+---
+
 ## Agent 계층 구조
 
 ```
@@ -86,6 +106,7 @@
 .claude/
 ├── AGENTS.md                    # 이 문서
 ├── commands/
+│   ├── new-feature.md           # 새 기능 오케스트레이터
 │   ├── devops/
 │   │   ├── deployer/
 │   │   │   ├── deploy.md
@@ -116,6 +137,7 @@
 │       └── pentester/
 │           └── scan.md
 └── skills/
+    ├── new-feature/             # 새 기능 오케스트레이터
     ├── devops-deployer/
     ├── devops-monitor/
     ├── devops-infra/
@@ -127,3 +149,9 @@
     ├── security-auditor/
     └── security-pentester/
 ```
+
+## 오케스트레이터 명령어
+
+| 명령어 | 설명 | 참여 팀 |
+|--------|------|---------|
+| `/new-feature` | 새 기능 개발 계획 | 전체 (Backend, DevOps, QA, Security) |
