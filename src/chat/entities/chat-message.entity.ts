@@ -31,7 +31,7 @@ export class ChatMessage {
   @Column({ name: 'user_id', nullable: true })
   userId: string | null;
 
-  @Column({ name: 'guest_id', nullable: true })
+  @Column({ type: 'varchar', name: 'guest_id', nullable: true })
   guestId: string | null;
 
   @Column({

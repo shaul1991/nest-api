@@ -44,7 +44,7 @@ export class ChatRoom {
   @JoinColumn({ name: 'created_by' })
   createdBy: User | null;
 
-  @Column({ name: 'created_by_guest_id', nullable: true })
+  @Column({ type: 'varchar', name: 'created_by_guest_id', nullable: true })
   createdByGuestId: string | null;
 
   @CreateDateColumn({ name: 'created_at' })
