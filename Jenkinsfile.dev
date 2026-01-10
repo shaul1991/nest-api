@@ -4,6 +4,7 @@ pipeline {
     environment {
         PROJECT_DIR = '/opt/nest-api'
         ENV = 'dev'
+        SLACK_WEBHOOK_URL = credentials('slack-webhook-url')
     }
 
     stages {
@@ -41,10 +42,90 @@ pipeline {
 
     post {
         success {
+            script {
+                def commitHash = sh(script: 'git rev-parse --short HEAD', returnStdout: true).trim()
+
+                sh """
+                    curl -X POST ${SLACK_WEBHOOK_URL} \
+                        -H "Content-Type: application/json" \
+                        -d '{
+                            "blocks": [
+                                {
+                                    "type": "header",
+                                    "text": {
+                                        "type": "plain_text",
+                                        "text": "✅ Dev 배포 완료",
+                                        "emoji": true
+                                    }
+                                },
+                                {
+                                    "type": "section",
+                                    "fields": [
+                                        {
+                                            "type": "mrkdwn",
+                                            "text": "*Commit:*\\n\`${commitHash}\`"
+                                        },
+                                        {
+                                            "type": "mrkdwn",
+                                            "text": "*Status:*\\n🟢 Online"
+                                        }
+                                    ]
+                                },
+                                {
+                                    "type": "context",
+                                    "elements": [
+                                        {
+                                            "type": "mrkdwn",
+                                            "text": "🔗 <https://dev-api-nest.shaul.link|Dev Server> | <https://dev-api-nest.shaul.link/api-docs|Swagger UI>"
+                                        }
+                                    ]
+                                }
+                            ]
+                        }'
+                """
+            }
             echo "Dev Blue-Green deployment successful!"
-            echo "URL: https://dev-api-nest.shaul.link"
         }
         failure {
+            script {
+                sh """
+                    curl -X POST ${SLACK_WEBHOOK_URL} \
+                        -H "Content-Type: application/json" \
+                        -d '{
+                            "blocks": [
+                                {
+                                    "type": "header",
+                                    "text": {
+                                        "type": "plain_text",
+                                        "text": "❌ Dev 배포 실패",
+                                        "emoji": true
+                                    }
+                                },
+                                {
+                                    "type": "section",
+                                    "text": {
+                                        "type": "mrkdwn",
+                                        "text": "Jenkins 로그를 확인해주세요."
+                                    }
+                                },
+                                {
+                                    "type": "actions",
+                                    "elements": [
+                                        {
+                                            "type": "button",
+                                            "text": {
+                                                "type": "plain_text",
+                                                "text": "🔍 로그 확인",
+                                                "emoji": true
+                                            },
+                                            "url": "${BUILD_URL}console"
+                                        }
+                                    ]
+                                }
+                            ]
+                        }'
+                """
+            }
             echo "Dev deployment failed!"
         }
         always {
