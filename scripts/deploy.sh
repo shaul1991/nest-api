@@ -127,9 +127,39 @@ update_caddy_upstream() {
         chmod 644 "${CADDY_CONFIG}"
     fi
 
-    # Reload Caddy
-    systemctl reload caddy
-    echo -e "${GREEN}Caddy reloaded${NC}"
+    # Reload Caddy - try multiple methods
+    echo "Reloading Caddy..."
+    
+    # Method 1: Try systemctl (works on host)
+    if command -v systemctl &> /dev/null && systemctl reload caddy 2>/dev/null; then
+        echo -e "${GREEN}Caddy reloaded via systemctl${NC}"
+        return 0
+    fi
+    
+    # Method 2: Try Caddy API via host.docker.internal (works from container)
+    if curl -sf -X POST "http://host.docker.internal:2019/load" \
+        -H "Content-Type: text/caddyfile" \
+        --data-binary @"${CADDY_CONFIG}" 2>/dev/null; then
+        echo -e "${GREEN}Caddy reloaded via API${NC}"
+        return 0
+    fi
+    
+    # Method 3: Try Caddy API via localhost (fallback)
+    if curl -sf -X POST "http://localhost:2019/load" \
+        -H "Content-Type: text/caddyfile" \
+        --data-binary @"${CADDY_CONFIG}" 2>/dev/null; then
+        echo -e "${GREEN}Caddy reloaded via localhost API${NC}"
+        return 0
+    fi
+    
+    # Method 4: Try caddy reload command
+    if command -v caddy &> /dev/null && caddy reload --config "${CADDY_CONFIG}" 2>/dev/null; then
+        echo -e "${GREEN}Caddy reloaded via caddy command${NC}"
+        return 0
+    fi
+    
+    echo -e "${YELLOW}Warning: Could not reload Caddy automatically. Please reload manually: sudo systemctl reload caddy${NC}"
+    return 0
 }
 
 # Function to cleanup old images
