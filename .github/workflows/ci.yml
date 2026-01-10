@@ -87,7 +87,13 @@ jobs:
         run: npm run test:e2e
         env:
           NODE_ENV: test
-          # E2E 테스트용 환경변수 (DB_* 형식)
+          # AppModule용 환경변수 (DATABASE_* 형식)
+          DATABASE_HOST: localhost
+          DATABASE_PORT: 5432
+          DATABASE_NAME: nest_api_test
+          DATABASE_USER: test
+          DATABASE_PASSWORD: test
+          # auth.e2e-spec.ts용 환경변수 (DB_* 형식)
           DB_HOST: localhost
           DB_PORT: 5432
           DB_NAME: nest_api_test
@@ -96,8 +102,9 @@ jobs:
           REDIS_HOST: localhost
           REDIS_PORT: 6379
           REDIS_PASSWORD: ''
-          JWT_SECRET: test-jwt-secret-for-ci
-          JWT_REFRESH_SECRET: test-jwt-refresh-secret-for-ci
+          # JWT 시크릿 (최소 32자 이상 필요)
+          JWT_SECRET: test-jwt-secret-key-for-ci-minimum-32-chars
+          JWT_REFRESH_SECRET: test-jwt-refresh-secret-key-for-ci-32-chars
 
   build:
     name: Build
