@@ -69,6 +69,15 @@ get_port_for_slot() {
     fi
 }
 
+# Function to force remove container by name
+force_remove_container() {
+    local container_name=$1
+    if docker ps -a --format '{{.Names}}' | grep -q "^${container_name}$"; then
+        echo "Removing existing container: ${container_name}"
+        docker rm -f "${container_name}" 2>/dev/null || true
+    fi
+}
+
 # Function to wait for health check
 wait_for_health() {
     local port=$1
@@ -150,9 +159,13 @@ main() {
     TARGET_SLOT=$(get_target_slot)
     TARGET_PORT=$(get_port_for_slot "${TARGET_SLOT}")
 
+    # Container name follows pattern: nest-api-{slot}-{env}
+    TARGET_CONTAINER="nest-api-${TARGET_SLOT}-${ENV}"
+
     echo "Active slot: ${ACTIVE_SLOT}"
     echo "Target slot: ${TARGET_SLOT}"
     echo "Target port: ${TARGET_PORT}"
+    echo "Target container: ${TARGET_CONTAINER}"
     echo ""
 
     # Step 1: Build new image with tag
@@ -170,11 +183,15 @@ main() {
     export BLUE_PORT
     export GREEN_PORT
 
+    # Force remove existing container to prevent name conflict
+    # This handles cases where container was created outside of compose project
+    force_remove_container "${TARGET_CONTAINER}"
+
+    # Stop target slot via compose if running (cleanup networks etc)
+    docker compose -p "nest-api-${ENV}" -f "${COMPOSE_FILE}" --env-file "${ENV_FILE}" --profile "${TARGET_SLOT}" down 2>/dev/null || true
+
     # Debug: Show the command being executed
     echo "Running: docker compose -p nest-api-${ENV} -f ${COMPOSE_FILE} --env-file ${ENV_FILE} --profile ${TARGET_SLOT} up -d"
-
-    # Stop target slot if running
-    docker compose -p "nest-api-${ENV}" -f "${COMPOSE_FILE}" --env-file "${ENV_FILE}" --profile "${TARGET_SLOT}" down 2>/dev/null || true
 
     # Start target slot
     docker compose -p "nest-api-${ENV}" -f "${COMPOSE_FILE}" --env-file "${ENV_FILE}" --profile "${TARGET_SLOT}" up -d
