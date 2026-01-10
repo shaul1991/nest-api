@@ -75,13 +75,21 @@ pipeline {
                     configFile(fileId: 'nest-api-env-dev', targetLocation: '.env.dev')
                 ]) {
                     script {
-                        // 타겟 슬롯 중지 (있으면)
+                        // 1. Docker Compose로 타겟 슬롯 중지
                         sh """
                             docker compose -p nest-api-${ENV} -f ${COMPOSE_FILE} \
-                                --profile ${TARGET_SLOT} down 2>/dev/null || true
+                                --profile ${TARGET_SLOT} down --remove-orphans 2>/dev/null || true
                         """
                         
-                        // 타겟 슬롯 시작
+                        // 2. 잔류 컨테이너 강제 제거 (Zombie 상태 방지)
+                        sh """
+                            docker rm -f nest-api-${TARGET_SLOT}-${ENV} 2>/dev/null || true
+                        """
+                        
+                        // 3. 정리 완료 대기 (Docker 데몬 동기화)
+                        sleep(3)
+                        
+                        // 4. 타겟 슬롯 시작 (--force-recreate로 기존 상태 무시)
                         sh """
                             export IMAGE_TAG=${IMAGE_TAG}
                             export DOCKER_IMAGE=${DOCKER_IMAGE}
@@ -91,7 +99,7 @@ pipeline {
                             
                             docker compose -p nest-api-${ENV} -f ${COMPOSE_FILE} \
                                 --env-file .env.dev \
-                                --profile ${TARGET_SLOT} up -d
+                                --profile ${TARGET_SLOT} up -d --force-recreate
                         """
                     }
                 }
