@@ -1,6 +1,6 @@
 # Blue-Green Application Services
-# Connects to shared infrastructure (postgres, redis) via external network
-# Run with: docker compose -p nest-api-{env}-{slot} -f docker-compose.blue-green.yml --profile {blue|green} up -d
+# Connects to existing infrastructure (postgres-dev:5433, redis-dev:6380) on host
+# Run with: docker compose -f docker-compose.blue-green.yml --profile {blue|green} up -d
 
 services:
   app-blue:
@@ -12,16 +12,18 @@ services:
     restart: unless-stopped
     ports:
       - "${BLUE_PORT:-3100}:3000"
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     environment:
       - NODE_ENV=${NODE_ENV:-production}
       - PORT=3000
-      - DATABASE_HOST=nest-api-postgres-${ENV:-prod}
-      - DATABASE_PORT=5432
+      - DATABASE_HOST=host.docker.internal
+      - DATABASE_PORT=${DATABASE_PORT:-5432}
       - DATABASE_NAME=${DATABASE_NAME}
       - DATABASE_USER=${DATABASE_USER}
       - DATABASE_PASSWORD=${DATABASE_PASSWORD}
-      - REDIS_HOST=nest-api-redis-${ENV:-prod}
-      - REDIS_PORT=6379
+      - REDIS_HOST=host.docker.internal
+      - REDIS_PORT=${REDIS_PORT:-6379}
       - REDIS_PASSWORD=${REDIS_PASSWORD}
       - JWT_SECRET=${JWT_SECRET}
       - JWT_REFRESH_SECRET=${JWT_REFRESH_SECRET}
@@ -36,8 +38,6 @@ services:
       timeout: 5s
       retries: 3
       start_period: 30s
-    networks:
-      - nest-api-network
     profiles:
       - blue
 
@@ -50,16 +50,18 @@ services:
     restart: unless-stopped
     ports:
       - "${GREEN_PORT:-3102}:3000"
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     environment:
       - NODE_ENV=${NODE_ENV:-production}
       - PORT=3000
-      - DATABASE_HOST=nest-api-postgres-${ENV:-prod}
-      - DATABASE_PORT=5432
+      - DATABASE_HOST=host.docker.internal
+      - DATABASE_PORT=${DATABASE_PORT:-5432}
       - DATABASE_NAME=${DATABASE_NAME}
       - DATABASE_USER=${DATABASE_USER}
       - DATABASE_PASSWORD=${DATABASE_PASSWORD}
-      - REDIS_HOST=nest-api-redis-${ENV:-prod}
-      - REDIS_PORT=6379
+      - REDIS_HOST=host.docker.internal
+      - REDIS_PORT=${REDIS_PORT:-6379}
       - REDIS_PASSWORD=${REDIS_PASSWORD}
       - JWT_SECRET=${JWT_SECRET}
       - JWT_REFRESH_SECRET=${JWT_REFRESH_SECRET}
@@ -74,12 +76,5 @@ services:
       timeout: 5s
       retries: 3
       start_period: 30s
-    networks:
-      - nest-api-network
     profiles:
       - green
-
-networks:
-  nest-api-network:
-    name: nest-api-${ENV:-prod}-network
-    external: true
