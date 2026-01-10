@@ -6,6 +6,7 @@ import {
   IsOptional,
   Min,
   Max,
+  MinLength,
   validateSync,
 } from 'class-validator';
 
@@ -52,6 +53,28 @@ export class EnvironmentVariables {
   @IsString()
   @IsOptional()
   REDIS_PASSWORD: string = '';
+
+  @IsString()
+  @MinLength(32)
+  JWT_SECRET: string;
+
+  @IsString()
+  @MinLength(32)
+  JWT_REFRESH_SECRET: string;
+
+  @IsString()
+  @IsOptional()
+  JWT_EXPIRATION: string = '15m';
+
+  @IsString()
+  @IsOptional()
+  JWT_REFRESH_EXPIRATION: string = '7d';
+
+  @IsNumber()
+  @Min(10)
+  @Max(14)
+  @IsOptional()
+  BCRYPT_SALT_ROUNDS: number = 12;
 }
 
 export function validate(config: Record<string, unknown>) {

@@ -1,19 +1,27 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
+import { CacheModule } from '@nestjs/cache-manager';
+import { APP_GUARD } from '@nestjs/core';
+import { createKeyv } from '@keyv/redis';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { HealthModule } from './health/health.module';
+import { AuthModule } from './auth/auth.module';
+import { UsersModule } from './users/users.module';
+import { JwtAuthGuard } from './auth/guards/jwt-auth.guard';
+import { RolesGuard } from './auth/guards/roles.guard';
 import { validate } from './config/env.validation';
 import databaseConfig from './config/database.config';
 import redisConfig from './config/redis.config';
+import authConfig from './config/auth.config';
 
 @Module({
   imports: [
     ConfigModule.forRoot({
       isGlobal: true,
       validate,
-      load: [databaseConfig, redisConfig],
+      load: [databaseConfig, redisConfig, authConfig],
     }),
     TypeOrmModule.forRootAsync({
       imports: [ConfigModule],
@@ -30,9 +38,38 @@ import redisConfig from './config/redis.config';
       }),
       inject: [ConfigService],
     }),
+    CacheModule.registerAsync({
+      isGlobal: true,
+      imports: [ConfigModule],
+      useFactory: (configService: ConfigService) => {
+        const redisHost = configService.get<string>('redis.host');
+        const redisPort = configService.get<number>('redis.port');
+        const redisPassword = configService.get<string>('redis.password');
+        const redisUrl = redisPassword
+          ? `redis://:${redisPassword}@${redisHost}:${redisPort}`
+          : `redis://${redisHost}:${redisPort}`;
+
+        return {
+          stores: [createKeyv(redisUrl)],
+        };
+      },
+      inject: [ConfigService],
+    }),
     HealthModule,
+    AuthModule,
+    UsersModule,
   ],
   controllers: [AppController],
-  providers: [AppService],
+  providers: [
+    AppService,
+    {
+      provide: APP_GUARD,
+      useClass: JwtAuthGuard,
+    },
+    {
+      provide: APP_GUARD,
+      useClass: RolesGuard,
+    },
+  ],
 })
 export class AppModule {}
