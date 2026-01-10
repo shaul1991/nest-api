@@ -54,7 +54,7 @@ pipeline {
                                     "type": "header",
                                     "text": {
                                         "type": "plain_text",
-                                        "text": "✅ Dev 배포 완료",
+                                        "text": "Dev 배포 완료",
                                         "emoji": true
                                     }
                                 },
@@ -63,11 +63,11 @@ pipeline {
                                     "fields": [
                                         {
                                             "type": "mrkdwn",
-                                            "text": "*Commit:*\\n\`${commitHash}\`"
+                                            "text": "*Commit:* ${commitHash}"
                                         },
                                         {
                                             "type": "mrkdwn",
-                                            "text": "*Status:*\\n🟢 Online"
+                                            "text": "*Status:* Online"
                                         }
                                     ]
                                 },
@@ -76,7 +76,7 @@ pipeline {
                                     "elements": [
                                         {
                                             "type": "mrkdwn",
-                                            "text": "🔗 <https://dev-api-nest.shaul.link|Dev Server> | <https://dev-api-nest.shaul.link/api-docs|Swagger UI>"
+                                            "text": "<https://dev-api-nest.shaul.link|Dev Server> | <https://dev-api-nest.shaul.link/api-docs|Swagger UI>"
                                         }
                                     ]
                                 }
@@ -97,7 +97,7 @@ pipeline {
                                     "type": "header",
                                     "text": {
                                         "type": "plain_text",
-                                        "text": "❌ Dev 배포 실패",
+                                        "text": "Dev 배포 실패",
                                         "emoji": true
                                     }
                                 },
@@ -115,7 +115,7 @@ pipeline {
                                             "type": "button",
                                             "text": {
                                                 "type": "plain_text",
-                                                "text": "🔍 로그 확인",
+                                                "text": "로그 확인",
                                                 "emoji": true
                                             },
                                             "url": "${BUILD_URL}console"
