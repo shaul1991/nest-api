@@ -143,10 +143,17 @@ jobs:
       - name: Trigger Jenkins Dev Deployment
         run: |
           echo "Triggering Jenkins job nest-api-dev"
+
+          # Get CSRF crumb
+          CRUMB=$(curl -s -u "${{ secrets.JENKINS_USER }}:${{ secrets.JENKINS_API_TOKEN }}" \
+            "${{ secrets.JENKINS_URL }}/crumbIssuer/api/json" | jq -r '.crumb')
+
+          # Trigger build with crumb
           curl -X POST \
             -u "${{ secrets.JENKINS_USER }}:${{ secrets.JENKINS_API_TOKEN }}" \
+            -H "Jenkins-Crumb: $CRUMB" \
             "${{ secrets.JENKINS_URL }}/job/홈%20서버/job/nest-api-dev/build" \
-            --fail --silent --show-error
+            --fail --show-error
 
       - name: Notify Slack - Dev Deployed
         if: success()
