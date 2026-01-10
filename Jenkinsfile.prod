@@ -1,0 +1,91 @@
+pipeline {
+    agent any
+
+    environment {
+        PROJECT_DIR = '/opt/nest-api'
+        DOCKER_IMAGE = 'nest-api'
+        ENVIRONMENT = 'production'
+        APP_PORT = '3100'
+    }
+
+    stages {
+        stage('Checkout') {
+            steps {
+                checkout([
+                    $class: 'GitSCM',
+                    branches: [[name: '*/main']],
+                    userRemoteConfigs: [[
+                        url: 'git@github.com:shaul1991/nest-api.git',
+                        credentialsId: 'github-ssh-key'
+                    ]]
+                ])
+            }
+        }
+
+        stage('Copy to Project Dir') {
+            steps {
+                sh """
+                    rsync -av --exclude='.git' --exclude='node_modules' --exclude='dist' \
+                        ./ ${PROJECT_DIR}/
+                """
+            }
+        }
+
+        stage('Build Docker Image') {
+            steps {
+                sh """
+                    cd ${PROJECT_DIR}
+                    docker build -t ${DOCKER_IMAGE}:latest .
+                """
+            }
+        }
+
+        stage('Deploy') {
+            steps {
+                sh """
+                    cd ${PROJECT_DIR}
+                    docker compose -f docker-compose.yml -f docker-compose.prod.yml --env-file .env.production down --remove-orphans || true
+                    docker compose -f docker-compose.yml -f docker-compose.prod.yml --env-file .env.production up -d --build
+                """
+            }
+        }
+
+        stage('Health Check') {
+            steps {
+                sh """
+                    echo "Waiting for application to start..."
+                    sleep 15
+                    for i in 1 2 3 4 5; do
+                        if curl -sf http://localhost:${APP_PORT}/health/live; then
+                            echo "Health check passed!"
+                            exit 0
+                        fi
+                        echo "Attempt \$i failed, retrying..."
+                        sleep 5
+                    done
+                    echo "Health check failed after 5 attempts"
+                    exit 1
+                """
+            }
+        }
+
+        stage('Cleanup') {
+            steps {
+                sh 'docker image prune -f'
+            }
+        }
+    }
+
+    post {
+        success {
+            echo "Production deployment successful!"
+            echo "Application URL: https://api-nest.shaul.link"
+        }
+        failure {
+            echo "Production deployment failed!"
+        }
+        always {
+            cleanWs()
+        }
+    }
+}
