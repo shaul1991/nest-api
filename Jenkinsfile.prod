@@ -13,7 +13,7 @@ pipeline {
             steps {
                 checkout([
                     $class: 'GitSCM',
-                    branches: [[name: '*/main']],
+                    branches: [[name: '*/release']],
                     userRemoteConfigs: [[
                         url: 'git@github.com:shaul1991/nest-api.git',
                         credentialsId: 'github-ssh-key'
