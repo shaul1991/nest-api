@@ -4,7 +4,9 @@ pipeline {
     environment {
         PROJECT_DIR = '/opt/nest-api'
         ENV = 'prod'
-        N8N_WEBHOOK_URL = 'https://n8n.shaul.link/webhook/deploy-result'
+        SLACK_BOT_TOKEN = credentials('slack-bot-token')
+        SLACK_CHANNEL_ID = credentials('slack-channel-id')
+        THREAD_TS_FILE = '/opt/nest-api/.slack-threads/prod-latest.ts'
     }
 
     stages {
@@ -25,7 +27,29 @@ pipeline {
             steps {
                 script {
                     def commitHash = sh(script: 'git rev-parse --short HEAD', returnStdout: true).trim()
-                    echo "Starting deployment for commit: ${commitHash}"
+                    def threadTs = ''
+
+                    // Read thread_ts from file if exists
+                    if (fileExists(env.THREAD_TS_FILE)) {
+                        threadTs = sh(script: "cat ${env.THREAD_TS_FILE}", returnStdout: true).trim()
+                        echo "Found thread_ts: ${threadTs}"
+                    }
+
+                    // Send thread reply if thread_ts exists
+                    if (threadTs) {
+                        sh """
+                            curl -s -X POST https://slack.com/api/chat.postMessage \
+                                -H "Authorization: Bearer ${SLACK_BOT_TOKEN}" \
+                                -H "Content-Type: application/json" \
+                                -d '{
+                                    "channel": "${SLACK_CHANNEL_ID}",
+                                    "thread_ts": "${threadTs}",
+                                    "text": "🔄 *Production 배포 시작*\\n• Commit: \`${commitHash}\`\\n• 상태: Blue-Green 배포 진행 중..."
+                                }'
+                        """
+                    } else {
+                        echo "No thread_ts found, skipping thread reply"
+                    }
                 }
             }
         }
@@ -53,26 +77,48 @@ pipeline {
         success {
             script {
                 def commitHash = sh(script: 'git rev-parse --short HEAD', returnStdout: true).trim()
+                def threadTs = ''
 
-                // n8n webhook 호출 - 스레드 답변 처리
-                sh """
-                    curl -X POST ${N8N_WEBHOOK_URL} \
-                        -H "Content-Type: application/json" \
-                        -d '{"status": "success", "commit": "${commitHash}", "environment": "prod"}'
-                """
+                if (fileExists(env.THREAD_TS_FILE)) {
+                    threadTs = sh(script: "cat ${env.THREAD_TS_FILE}", returnStdout: true).trim()
+                }
+
+                if (threadTs) {
+                    sh """
+                        curl -s -X POST https://slack.com/api/chat.postMessage \
+                            -H "Authorization: Bearer ${SLACK_BOT_TOKEN}" \
+                            -H "Content-Type: application/json" \
+                            -d '{
+                                "channel": "${SLACK_CHANNEL_ID}",
+                                "thread_ts": "${threadTs}",
+                                "text": "✅ *Production 배포 성공*\\n• Commit: \`${commitHash}\`\\n• 상태: 🟢 Online\\n• 서버: <https://api-nest.shaul.link|Production Server>"
+                            }'
+                    """
+                }
             }
             echo "Production Blue-Green deployment successful!"
         }
         failure {
             script {
                 def commitHash = sh(script: 'git rev-parse --short HEAD', returnStdout: true).trim()
+                def threadTs = ''
 
-                // n8n webhook 호출 - 실패 스레드 답변
-                sh """
-                    curl -X POST ${N8N_WEBHOOK_URL} \
-                        -H "Content-Type: application/json" \
-                        -d '{"status": "failure", "commit": "${commitHash}", "environment": "prod"}'
-                """
+                if (fileExists(env.THREAD_TS_FILE)) {
+                    threadTs = sh(script: "cat ${env.THREAD_TS_FILE}", returnStdout: true).trim()
+                }
+
+                if (threadTs) {
+                    sh """
+                        curl -s -X POST https://slack.com/api/chat.postMessage \
+                            -H "Authorization: Bearer ${SLACK_BOT_TOKEN}" \
+                            -H "Content-Type: application/json" \
+                            -d '{
+                                "channel": "${SLACK_CHANNEL_ID}",
+                                "thread_ts": "${threadTs}",
+                                "text": "❌ *Production 배포 실패*\\n• Commit: \`${commitHash}\`\\n• 상태: 🔴 Failed\\n• <${BUILD_URL}console|로그 확인>"
+                            }'
+                    """
+                }
             }
             echo "Production deployment failed!"
         }
