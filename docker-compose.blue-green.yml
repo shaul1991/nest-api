@@ -1,9 +1,10 @@
 # Blue-Green Application Services
 # Connects to existing infrastructure via host.docker.internal
 # Port Scheme:
-#   Prod: Blue=3100, Green=3101 (uses postgres:5432, redis:6379)
-#   Dev:  Blue=3102, Green=3103 (uses postgres-dev:5433, redis-dev:6380)
-# Run with: docker compose -f docker-compose.blue-green.yml --env-file .env.{dev|production} --profile {blue|green} up -d
+#   Prod: Blue=3100, Green=3102 (uses postgres:5432, redis:6379)
+#   Dev:  Blue=3101, Green=3103 (uses postgres-dev:5433, redis-dev:6380)
+# Run with: docker compose -p nest-api-{env} -f docker-compose.blue-green.yml --env-file .env.{dev|production} --profile {blue|green} up -d
+# Container names are auto-generated as: {project_name}-{service_name}-1
 
 services:
   app-blue:
@@ -11,7 +12,6 @@ services:
       context: .
       dockerfile: Dockerfile
     image: ${DOCKER_IMAGE:-nest-api}:${IMAGE_TAG:-latest}
-    container_name: nest-api-blue-${ENV:-prod}
     restart: unless-stopped
     ports:
       - "${BLUE_PORT:-3100}:3000"
@@ -49,10 +49,9 @@ services:
       context: .
       dockerfile: Dockerfile
     image: ${DOCKER_IMAGE:-nest-api}:${IMAGE_TAG:-latest}
-    container_name: nest-api-green-${ENV:-prod}
     restart: unless-stopped
     ports:
-      - "${GREEN_PORT:-3101}:3000"
+      - "${GREEN_PORT:-3102}:3000"
     extra_hosts:
       - "host.docker.internal:host-gateway"
     environment:
