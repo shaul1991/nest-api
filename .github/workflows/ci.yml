@@ -161,17 +161,40 @@ jobs:
             CRUMB_RESPONSE=$(curl -s -u "${{ secrets.JENKINS_USER }}:${{ secrets.JENKINS_API_TOKEN }}" \
               "${{ secrets.JENKINS_URL }}/crumbIssuer/api/json")
 
-            CRUMB=$(echo "$CRUMB_RESPONSE" | jq -r '.crumb // empty')
+            echo "CSRF Response (first 200 chars): ${CRUMB_RESPONSE:0:200}"
 
-            if [ -n "$CRUMB" ]; then
-              curl -X POST \
-                -u "${{ secrets.JENKINS_USER }}:${{ secrets.JENKINS_API_TOKEN }}" \
-                -H "Jenkins-Crumb: $CRUMB" \
-                "${{ secrets.JENKINS_URL }}/job/홈%20서버/job/nest-api-dev/build" \
-                --fail --show-error
+            # Check if response is JSON
+            if echo "$CRUMB_RESPONSE" | jq -e . >/dev/null 2>&1; then
+              CRUMB=$(echo "$CRUMB_RESPONSE" | jq -r '.crumb // empty')
+
+              if [ -n "$CRUMB" ]; then
+                curl -X POST \
+                  -u "${{ secrets.JENKINS_USER }}:${{ secrets.JENKINS_API_TOKEN }}" \
+                  -H "Jenkins-Crumb: $CRUMB" \
+                  "${{ secrets.JENKINS_URL }}/job/홈%20서버/job/nest-api-dev/build" \
+                  --fail --show-error
+                echo "Build triggered with CSRF crumb"
+              else
+                echo "CSRF crumb is empty"
+                exit 1
+              fi
             else
-              echo "Failed to get CSRF crumb. Response: $CRUMB_RESPONSE"
-              exit 1
+              echo "CSRF response is not JSON. Jenkins CSRF might be disabled or auth failed."
+              echo "Trying buildWithParameters endpoint..."
+
+              # Try alternative endpoint
+              HTTP_CODE2=$(curl -s -o /dev/null -w "%{http_code}" -X POST \
+                -u "${{ secrets.JENKINS_USER }}:${{ secrets.JENKINS_API_TOKEN }}" \
+                "${{ secrets.JENKINS_URL }}/job/홈%20서버/job/nest-api-dev/buildWithParameters")
+
+              if [ "$HTTP_CODE2" = "201" ] || [ "$HTTP_CODE2" = "200" ]; then
+                echo "Build triggered via buildWithParameters (HTTP $HTTP_CODE2)"
+                exit 0
+              else
+                echo "buildWithParameters also failed (HTTP $HTTP_CODE2)"
+                echo "Jenkins might require different authentication or permissions"
+                exit 1
+              fi
             fi
           else
             echo "Unexpected HTTP code: $HTTP_CODE"
