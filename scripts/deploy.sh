@@ -85,29 +85,20 @@ cleanup_legacy_containers() {
 reload_caddy() {
     echo "Reloading Caddy..."
 
-    # Method 1: Try systemctl with sudo (works on host)
+    # Method 1: Try systemctl with sudo (works on host directly)
     if command -v systemctl &> /dev/null && sudo systemctl reload caddy 2>/dev/null; then
         echo -e "${GREEN}Caddy reloaded via systemctl${NC}"
         return 0
     fi
 
-    # Method 2: Try Caddy API via host.docker.internal (works from container)
-    if curl -sf -X POST "http://host.docker.internal:2019/load" \
-        -H "Content-Type: text/caddyfile" \
-        --data-binary @"${CADDY_CONFIG}" 2>/dev/null; then
-        echo -e "${GREEN}Caddy reloaded via API${NC}"
+    # Method 2: Execute systemctl on host via privileged container (works from Jenkins container)
+    if docker run --rm --privileged --pid=host alpine:latest \
+        nsenter -t 1 -m -u -n -i -- systemctl reload caddy 2>/dev/null; then
+        echo -e "${GREEN}Caddy reloaded via host nsenter${NC}"
         return 0
     fi
 
-    # Method 3: Try Caddy API via localhost (fallback)
-    if curl -sf -X POST "http://localhost:2019/load" \
-        -H "Content-Type: text/caddyfile" \
-        --data-binary @"${CADDY_CONFIG}" 2>/dev/null; then
-        echo -e "${GREEN}Caddy reloaded via localhost API${NC}"
-        return 0
-    fi
-
-    # Method 4: Try caddy reload command
+    # Method 3: Try caddy reload command
     if command -v caddy &> /dev/null && caddy reload --config "${CADDY_CONFIG}" 2>/dev/null; then
         echo -e "${GREEN}Caddy reloaded via caddy command${NC}"
         return 0
