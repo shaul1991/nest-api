@@ -1,6 +1,9 @@
 # Blue-Green Application Services
-# Connects to existing infrastructure (postgres-dev:5433, redis-dev:6380) on host
-# Run with: docker compose -f docker-compose.blue-green.yml --profile {blue|green} up -d
+# Connects to existing infrastructure via host.docker.internal
+# Port Scheme:
+#   Prod: Blue=3100, Green=3102 (uses postgres:5432, redis:6379)
+#   Dev:  Blue=3101, Green=3103 (uses postgres-dev:5433, redis-dev:6380)
+# Run with: docker compose -f docker-compose.blue-green.yml --env-file .env.{dev|production} --profile {blue|green} up -d
 
 services:
   app-blue:
@@ -17,12 +20,12 @@ services:
     environment:
       - NODE_ENV=${NODE_ENV:-production}
       - PORT=3000
-      - DATABASE_HOST=host.docker.internal
+      - DATABASE_HOST=${DATABASE_HOST:-host.docker.internal}
       - DATABASE_PORT=${DATABASE_PORT:-5432}
       - DATABASE_NAME=${DATABASE_NAME}
       - DATABASE_USER=${DATABASE_USER}
       - DATABASE_PASSWORD=${DATABASE_PASSWORD}
-      - REDIS_HOST=host.docker.internal
+      - REDIS_HOST=${REDIS_HOST:-host.docker.internal}
       - REDIS_PORT=${REDIS_PORT:-6379}
       - REDIS_PASSWORD=${REDIS_PASSWORD}
       - JWT_SECRET=${JWT_SECRET}
@@ -49,18 +52,18 @@ services:
     container_name: nest-api-green-${ENV:-prod}
     restart: unless-stopped
     ports:
-      - "${GREEN_PORT:-3102}:3000"
+      - "${GREEN_PORT:-3101}:3000"
     extra_hosts:
       - "host.docker.internal:host-gateway"
     environment:
       - NODE_ENV=${NODE_ENV:-production}
       - PORT=3000
-      - DATABASE_HOST=host.docker.internal
+      - DATABASE_HOST=${DATABASE_HOST:-host.docker.internal}
       - DATABASE_PORT=${DATABASE_PORT:-5432}
       - DATABASE_NAME=${DATABASE_NAME}
       - DATABASE_USER=${DATABASE_USER}
       - DATABASE_PASSWORD=${DATABASE_PASSWORD}
-      - REDIS_HOST=host.docker.internal
+      - REDIS_HOST=${REDIS_HOST:-host.docker.internal}
       - REDIS_PORT=${REDIS_PORT:-6379}
       - REDIS_PASSWORD=${REDIS_PASSWORD}
       - JWT_SECRET=${JWT_SECRET}
