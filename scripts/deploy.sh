@@ -22,10 +22,10 @@ PROJECT_NAME="nest-api-${ENV}"
 
 if [ "${ENV}" == "prod" ]; then
     BLUE_PORT=3100
-    GREEN_PORT=3102
+    GREEN_PORT=3101
     DOMAIN="api-nest.shaul.link"
 else
-    BLUE_PORT=3101
+    BLUE_PORT=3102
     GREEN_PORT=3103
     DOMAIN="dev-api-nest.shaul.link"
 fi
@@ -256,13 +256,13 @@ main() {
     echo ""
 
     # Step 3: Wait for health check
-#    echo -e "${YELLOW}Step 3: Health check...${NC}"
-#    if ! wait_for_health "${TARGET_PORT}"; then
-#        echo -e "${RED}Deployment failed! Rolling back...${NC}"
-#        docker compose -p "${PROJECT_NAME}" -f "${COMPOSE_FILE}" --env-file "${ENV_FILE}" --profile "${TARGET_SLOT}" down
-#        exit 1
-#    fi
-#    echo ""
+    echo -e "${YELLOW}Step 3: Health check...${NC}"
+    if ! wait_for_health "${TARGET_PORT}"; then
+        echo -e "${RED}Deployment failed! Rolling back...${NC}"
+        docker compose -p "${PROJECT_NAME}" -f "${COMPOSE_FILE}" --env-file "${ENV_FILE}" --profile "${TARGET_SLOT}" down
+        exit 1
+    fi
+    echo ""
 
     # Step 4: Update Caddy upstream
     echo -e "${YELLOW}Step 4: Switching traffic...${NC}"
