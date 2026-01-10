@@ -27,16 +27,12 @@ pipeline {
             }
         }
 
-        stage('Copy Env File') {
+        stage('Inject Config Files') {
             steps {
-                script {
-                    // 호스트의 .env.dev 파일을 Jenkins 워크스페이스로 복사
-                    sh '''
-                        docker run --rm \
-                            -v /opt/nest-api:/host \
-                            -v ${WORKSPACE}:/workspace \
-                            alpine cp /host/.env.dev /workspace/.env.dev
-                    '''
+                configFileProvider([
+                    configFile(fileId: 'nest-api-env-dev', targetLocation: '.env.dev')
+                ]) {
+                    echo "Config file injected: .env.dev"
                 }
             }
         }
@@ -75,25 +71,29 @@ pipeline {
 
         stage('Deploy to Target Slot') {
             steps {
-                script {
-                    // 타겟 슬롯 중지 (있으면)
-                    sh """
-                        docker compose -p nest-api-${ENV} -f ${COMPOSE_FILE} \
-                            --profile ${TARGET_SLOT} down 2>/dev/null || true
-                    """
-                    
-                    // 타겟 슬롯 시작
-                    sh """
-                        export IMAGE_TAG=${IMAGE_TAG}
-                        export DOCKER_IMAGE=${DOCKER_IMAGE}
-                        export ENV=${ENV}
-                        export BLUE_PORT=${BLUE_PORT}
-                        export GREEN_PORT=${GREEN_PORT}
+                configFileProvider([
+                    configFile(fileId: 'nest-api-env-dev', targetLocation: '.env.dev')
+                ]) {
+                    script {
+                        // 타겟 슬롯 중지 (있으면)
+                        sh """
+                            docker compose -p nest-api-${ENV} -f ${COMPOSE_FILE} \
+                                --profile ${TARGET_SLOT} down 2>/dev/null || true
+                        """
                         
-                        docker compose -p nest-api-${ENV} -f ${COMPOSE_FILE} \
-                            --env-file .env.dev \
-                            --profile ${TARGET_SLOT} up -d
-                    """
+                        // 타겟 슬롯 시작
+                        sh """
+                            export IMAGE_TAG=${IMAGE_TAG}
+                            export DOCKER_IMAGE=${DOCKER_IMAGE}
+                            export ENV=${ENV}
+                            export BLUE_PORT=${BLUE_PORT}
+                            export GREEN_PORT=${GREEN_PORT}
+                            
+                            docker compose -p nest-api-${ENV} -f ${COMPOSE_FILE} \
+                                --env-file .env.dev \
+                                --profile ${TARGET_SLOT} up -d
+                        """
+                    }
                 }
             }
         }
