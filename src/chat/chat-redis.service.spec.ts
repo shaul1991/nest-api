@@ -1,10 +1,8 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { ConfigService } from '@nestjs/config';
-import {
-  ChatRedisService,
-  GuestSession,
-  SocketData,
-} from './chat-redis.service';
+import { ChatRedisService, GuestSession } from './chat-redis.service';
+import { SocketData } from './interfaces/socket-data.interface';
+import { ParticipantType } from './interfaces/participant-type.enum';
 
 // Mock ioredis
 jest.mock('ioredis', () => {
@@ -195,8 +193,8 @@ describe('ChatRedisService', () => {
   });
 
   describe('Socket Connection Management', () => {
-    const socketData: SocketData = {
-      participantType: 'user',
+    const redisSocketData = {
+      participantType: 'user' as const,
       userId: 'user-uuid-1',
       nickname: 'TestUser',
       isAuthenticated: true,
@@ -204,22 +202,26 @@ describe('ChatRedisService', () => {
     };
 
     it('소켓 연결 정보를 저장해야 함 (24시간 TTL)', async () => {
-      await service.setSocketConnection('socket-id-1', socketData);
+      await service.setSocketConnection('socket-id-1', redisSocketData);
 
       expect(mockRedis.setex).toHaveBeenCalledWith(
         'chat:socket:socket-id-1',
         24 * 60 * 60,
-        JSON.stringify(socketData),
+        JSON.stringify(redisSocketData),
       );
     });
 
     it('소켓 연결 정보를 조회해야 함', async () => {
-      mockRedis.get.mockResolvedValue(JSON.stringify(socketData));
+      mockRedis.get.mockResolvedValue(JSON.stringify(redisSocketData));
 
       const result = await service.getSocketConnection('socket-id-1');
 
       expect(mockRedis.get).toHaveBeenCalledWith('chat:socket:socket-id-1');
-      expect(result).toEqual(socketData);
+      expect(result).toEqual({
+        ...redisSocketData,
+        participantType: ParticipantType.USER,
+        currentRooms: new Set(['room-1', 'room-2']),
+      });
     });
 
     it('소켓 연결 정보를 삭제해야 함', async () => {
