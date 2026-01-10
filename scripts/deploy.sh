@@ -81,30 +81,6 @@ cleanup_legacy_containers() {
     docker rm -f "nest-api-green-prod" 2>/dev/null || true
 }
 
-# Function to wait for health check
-wait_for_health() {
-    local port=$1
-    local max_attempts=30
-    local attempt=1
-
-    echo -e "${YELLOW}Waiting for health check on port ${port}...${NC}"
-
-    while [ ${attempt} -le ${max_attempts} ]; do
-        # Try localhost first (host execution), then host.docker.internal (container execution)
-        if curl -sf "http://localhost:${port}/health/live" > /dev/null 2>&1 || \
-           curl -sf "http://host.docker.internal:${port}/health/live" > /dev/null 2>&1; then
-            echo -e "${GREEN}Health check passed!${NC}"
-            return 0
-        fi
-        echo "Attempt ${attempt}/${max_attempts} failed, retrying..."
-        sleep 2
-        ((attempt++))
-    done
-
-    echo -e "${RED}Health check failed after ${max_attempts} attempts${NC}"
-    return 1
-}
-
 # Function to reload Caddy configuration
 reload_caddy() {
     echo "Reloading Caddy..."
@@ -255,31 +231,22 @@ main() {
     docker compose -p "${PROJECT_NAME}" -f "${COMPOSE_FILE}" --env-file "${ENV_FILE}" --profile "${TARGET_SLOT}" up -d
     echo ""
 
-    # Step 3: Wait for health check
-    echo -e "${YELLOW}Step 3: Health check...${NC}"
-    if ! wait_for_health "${TARGET_PORT}"; then
-        echo -e "${RED}Deployment failed! Rolling back...${NC}"
-        docker compose -p "${PROJECT_NAME}" -f "${COMPOSE_FILE}" --env-file "${ENV_FILE}" --profile "${TARGET_SLOT}" down
-        exit 1
-    fi
-    echo ""
-
-    # Step 4: Update Caddy upstream
-    echo -e "${YELLOW}Step 4: Switching traffic...${NC}"
+    # Step 3: Update Caddy upstream
+    echo -e "${YELLOW}Step 3: Switching traffic...${NC}"
     update_caddy_upstream "${TARGET_SLOT}" "${TARGET_PORT}"
     echo ""
 
-    # Step 5: Update active slot state
+    # Step 4: Update active slot state
     echo "${TARGET_SLOT}" > "${STATE_FILE}-${ENV}"
     echo -e "${GREEN}Active slot updated to: ${TARGET_SLOT}${NC}"
     echo ""
 
-    # Step 6: Stop old slot
+    # Step 5: Stop old slot
     echo -e "${YELLOW}Step 5: Stopping old slot (${ACTIVE_SLOT})...${NC}"
     docker compose -p "${PROJECT_NAME}" -f "${COMPOSE_FILE}" --env-file "${ENV_FILE}" --profile "${ACTIVE_SLOT}" down --remove-orphans 2>/dev/null || true
     echo ""
 
-    # Step 7: Cleanup old images
+    # Step 6: Cleanup old images
     echo -e "${YELLOW}Step 6: Cleaning up...${NC}"
     cleanup_old_images
     echo ""
