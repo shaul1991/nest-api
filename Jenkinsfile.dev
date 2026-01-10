@@ -2,7 +2,7 @@ pipeline {
     agent any
 
     environment {
-        PROJECT_DIR = '/opt/nest-api'
+        PROJECT_DIR = '/opt/projects/nest-api'
         ENV = 'dev'
         SLACK_WEBHOOK_URL = credentials('slack-webhook-url')
     }
@@ -24,7 +24,7 @@ pipeline {
         stage('Inject Env File') {
             steps {
                 configFileProvider([
-                    configFile(fileId: '0b3b8c2d-ae17-47d6-b6f8-3749555c9b2f', targetLocation: '.env.dev')
+                    configFile(fileId: 'nest-api-env-dev', targetLocation: '.env.dev')
                 ]) {
                     sh """
                         echo "Env file injected successfully"
@@ -37,7 +37,7 @@ pipeline {
         stage('Sync to Project Dir') {
             steps {
                 configFileProvider([
-                    configFile(fileId: '0b3b8c2d-ae17-47d6-b6f8-3749555c9b2f', targetLocation: '.env.dev')
+                    configFile(fileId: 'nest-api-env-dev', targetLocation: '.env.dev')
                 ]) {
                     sh """
                         # Clean target directory (except important files)
@@ -54,8 +54,9 @@ pipeline {
                         tar --exclude='.git' --exclude='node_modules' --exclude='dist' -cf - . | \
                             tar -xf - -C ${PROJECT_DIR}/
 
-                        # Copy env file to project directory
+                        # Copy env file to project directory with proper permissions
                         cp .env.dev ${PROJECT_DIR}/.env.dev
+                        chmod 644 ${PROJECT_DIR}/.env.dev
 
                         echo "Files synced to ${PROJECT_DIR}"
                         ls -la ${PROJECT_DIR}/
