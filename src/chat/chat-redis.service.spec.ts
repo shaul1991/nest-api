@@ -1,7 +1,6 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { ConfigService } from '@nestjs/config';
 import { ChatRedisService, GuestSession } from './chat-redis.service';
-import { SocketData } from './interfaces/socket-data.interface';
 import { ParticipantType } from './interfaces/participant-type.enum';
 
 // Mock ioredis
