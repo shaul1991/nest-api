@@ -2,7 +2,7 @@
 set -e
 
 # Configuration
-PROJECT_DIR="/opt/nest-api"
+PROJECT_DIR="/opt/projects/nest-api"
 COMPOSE_FILE="docker-compose.blue-green.yml"
 STATE_FILE="$PROJECT_DIR/.active-slot"
 CADDY_CONFIG="/etc/caddy/Caddyfile"
