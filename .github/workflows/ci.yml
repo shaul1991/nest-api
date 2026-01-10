@@ -358,6 +358,6 @@ jobs:
           username: ${{ secrets.SSH_USER }}
           key: ${{ secrets.SSH_PRIVATE_KEY }}
           script: |
-            mkdir -p /opt/nest-api/.slack-threads
-            echo "${{ steps.slack.outputs.thread_ts }}" > /opt/nest-api/.slack-threads/prod-latest.ts
+            mkdir -p /opt/projects/nest-api/.slack-threads
+            echo "${{ steps.slack.outputs.thread_ts }}" > /opt/projects/nest-api/.slack-threads/prod-latest.ts
             echo "Saved thread_ts: ${{ steps.slack.outputs.thread_ts }}"

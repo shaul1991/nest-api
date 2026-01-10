@@ -2,11 +2,11 @@ pipeline {
     agent any
 
     environment {
-        PROJECT_DIR = '/opt/nest-api'
+        PROJECT_DIR = '/opt/projects/nest-api'
         ENV = 'prod'
         SLACK_BOT_TOKEN = credentials('slack-bot-token')
         SLACK_CHANNEL_ID = credentials('slack-channel-id')
-        THREAD_TS_FILE = '/opt/nest-api/.slack-threads/prod-latest.ts'
+        THREAD_TS_FILE = '/opt/projects/nest-api/.slack-threads/prod-latest.ts'
     }
 
     stages {
