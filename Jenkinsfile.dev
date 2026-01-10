@@ -2,9 +2,15 @@ pipeline {
     agent any
 
     environment {
-        PROJECT_DIR = '/opt/nest-api'
+        DOCKER_IMAGE = 'nest-api'
         ENV = 'dev'
+        COMPOSE_FILE = 'docker-compose.blue-green.yml'
         SLACK_WEBHOOK_URL = credentials('slack-webhook-url')
+        
+        // Blue-Green 포트 설정
+        BLUE_PORT = '3101'
+        GREEN_PORT = '3103'
+        DOMAIN = 'dev-api-nest.shaul.link'
     }
 
     stages {
@@ -21,21 +27,143 @@ pipeline {
             }
         }
 
-        stage('Sync to Project Dir') {
+        stage('Build Docker Image') {
             steps {
-                sh """
-                    rsync -av --exclude='.git' --exclude='node_modules' --exclude='dist' \
-                        ./ ${PROJECT_DIR}/
-                """
+                script {
+                    env.IMAGE_TAG = sh(script: 'date +%Y%m%d-%H%M%S', returnStdout: true).trim()
+                    sh """
+                        docker build -t ${DOCKER_IMAGE}:${IMAGE_TAG} -t ${DOCKER_IMAGE}:latest .
+                    """
+                }
             }
         }
 
-        stage('Blue-Green Deploy') {
+        stage('Determine Target Slot') {
             steps {
-                sh """
-                    cd ${PROJECT_DIR}
-                    ./scripts/deploy.sh ${ENV}
-                """
+                script {
+                    // 현재 활성 슬롯 확인
+                    def activeSlot = sh(
+                        script: 'cat /opt/nest-api/.active-slot-dev 2>/dev/null || echo "blue"',
+                        returnStdout: true
+                    ).trim()
+                    
+                    env.ACTIVE_SLOT = activeSlot
+                    env.TARGET_SLOT = (activeSlot == 'blue') ? 'green' : 'blue'
+                    env.TARGET_PORT = (env.TARGET_SLOT == 'blue') ? BLUE_PORT : GREEN_PORT
+                    
+                    echo "Active: ${env.ACTIVE_SLOT}, Target: ${env.TARGET_SLOT}, Port: ${env.TARGET_PORT}"
+                }
+            }
+        }
+
+        stage('Deploy to Target Slot') {
+            steps {
+                script {
+                    // 타겟 슬롯 중지 (있으면)
+                    sh """
+                        docker compose -p nest-api-${ENV} -f ${COMPOSE_FILE} \
+                            --profile ${TARGET_SLOT} down 2>/dev/null || true
+                    """
+                    
+                    // 타겟 슬롯 시작
+                    sh """
+                        export IMAGE_TAG=${IMAGE_TAG}
+                        export DOCKER_IMAGE=${DOCKER_IMAGE}
+                        export ENV=${ENV}
+                        export BLUE_PORT=${BLUE_PORT}
+                        export GREEN_PORT=${GREEN_PORT}
+                        
+                        docker compose -p nest-api-${ENV} -f ${COMPOSE_FILE} \
+                            --env-file .env.dev \
+                            --profile ${TARGET_SLOT} up -d
+                    """
+                }
+            }
+        }
+
+        stage('Health Check') {
+            steps {
+                script {
+                    def maxAttempts = 30
+                    def healthy = false
+                    
+                    for (int i = 1; i <= maxAttempts; i++) {
+                        def result = sh(
+                            script: "curl -sf http://localhost:${TARGET_PORT}/health/live || exit 1",
+                            returnStatus: true
+                        )
+                        if (result == 0) {
+                            echo "Health check passed on attempt ${i}"
+                            healthy = true
+                            break
+                        }
+                        echo "Health check attempt ${i}/${maxAttempts} failed, retrying..."
+                        sleep(2)
+                    }
+                    
+                    if (!healthy) {
+                        // 롤백: 새 컨테이너 중지
+                        sh """
+                            docker compose -p nest-api-${ENV} -f ${COMPOSE_FILE} \
+                                --profile ${TARGET_SLOT} down
+                        """
+                        error("Health check failed after ${maxAttempts} attempts")
+                    }
+                }
+            }
+        }
+
+        stage('Switch Traffic') {
+            steps {
+                script {
+                    // Caddy 업스트림 전환 (호스트에서 실행)
+                    sh """
+                        docker run --rm \
+                            -v /etc/caddy:/etc/caddy \
+                            -v /opt/nest-api:/opt/nest-api \
+                            --privileged \
+                            --pid=host \
+                            alpine sh -c '
+                                sed -i "s/localhost:[0-9]\\{4\\}/localhost:${TARGET_PORT}/g" /etc/caddy/sites/nest-api-dev.caddy 2>/dev/null || \
+                                sed -i "s/localhost:[0-9]\\{4\\}/localhost:${TARGET_PORT}/g" /etc/caddy/Caddyfile
+                                nsenter -t 1 -m -u -n -i systemctl reload caddy
+                            '
+                    """
+                    
+                    // 활성 슬롯 상태 파일 업데이트
+                    sh """
+                        docker run --rm -v /opt/nest-api:/opt/nest-api alpine \
+                            sh -c 'echo "${TARGET_SLOT}" > /opt/nest-api/.active-slot-dev'
+                    """
+                }
+            }
+        }
+
+        stage('Stop Old Slot') {
+            steps {
+                script {
+                    sh """
+                        docker compose -p nest-api-${ENV} -f ${COMPOSE_FILE} \
+                            --profile ${ACTIVE_SLOT} down 2>/dev/null || true
+                    """
+                }
+            }
+        }
+
+        stage('Cleanup Old Images') {
+            steps {
+                script {
+                    sh '''
+                        # 최근 5개 이미지만 유지
+                        docker images nest-api --format "{{.Tag}} {{.CreatedAt}}" | \
+                            grep -v "latest" | grep -v "dev" | \
+                            sort -k2,3 -r | tail -n +6 | awk '{print $1}' | \
+                            xargs -I {} docker rmi nest-api:{} 2>/dev/null || true
+                        
+                        # Dangling 이미지 정리
+                        docker image prune -f
+                    '''
+                }
             }
         }
     }
@@ -67,7 +195,7 @@ pipeline {
                                         },
                                         {
                                             "type": "mrkdwn",
-                                            "text": "*Status:* Online"
+                                            "text": "*Slot:* ${TARGET_SLOT}"
                                         }
                                     ]
                                 },
@@ -129,7 +257,7 @@ pipeline {
             echo "Dev deployment failed!"
         }
         always {
-            cleanWs()
+            sh 'docker system prune -f 2>/dev/null || true'
         }
     }
 }
