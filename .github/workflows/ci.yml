@@ -95,6 +95,8 @@ jobs:
           REDIS_HOST: localhost
           REDIS_PORT: 6379
           REDIS_PASSWORD: ''
+          JWT_SECRET: test-jwt-secret-for-ci
+          JWT_REFRESH_SECRET: test-jwt-refresh-secret-for-ci
 
   build:
     name: Build
