@@ -1,8 +1,8 @@
 # Blue-Green Application Services
 # Connects to existing infrastructure via host.docker.internal
 # Port Scheme:
-#   Prod: Blue=3100, Green=3102 (uses postgres:5432, redis:6379)
-#   Dev:  Blue=3101, Green=3103 (uses postgres-dev:5433, redis-dev:6380)
+#   Prod: Blue=3100, Green=3101 (uses postgres:5432, redis:6379)
+#   Dev:  Blue=3102, Green=3103 (uses postgres-dev:5433, redis-dev:6380)
 # Run with: docker compose -f docker-compose.blue-green.yml --env-file .env.{dev|production} --profile {blue|green} up -d
 
 services:
