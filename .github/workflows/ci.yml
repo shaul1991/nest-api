@@ -148,173 +148,37 @@ jobs:
             "${{ secrets.JENKINS_URL }}/job/홈%20서버/job/nest-api-dev/build" \
             --fail --silent --show-error || echo "Jenkins notification sent"
 
-      - name: Notify Slack - Dev Deployed
+      - name: Notify via n8n
         if: success()
         run: |
-          curl -X POST ${{ secrets.SLACK_WEBHOOK_URL }} \
+          curl -X POST https://n8n.shaul.link/webhook/ci-result \
             -H "Content-Type: application/json" \
             -d '{
-              "blocks": [
-                {
-                  "type": "header",
-                  "text": {
-                    "type": "plain_text",
-                    "text": "🚀 Dev 배포 시작",
-                    "emoji": true
-                  }
-                },
-                {
-                  "type": "section",
-                  "fields": [
-                    {
-                      "type": "mrkdwn",
-                      "text": "*Branch:*\ndevelop"
-                    },
-                    {
-                      "type": "mrkdwn",
-                      "text": "*Commit:*\n`${{ github.sha }}`"
-                    }
-                  ]
-                },
-                {
-                  "type": "section",
-                  "text": {
-                    "type": "mrkdwn",
-                    "text": "*Commit Message:*\n${{ github.event.head_commit.message }}"
-                  }
-                },
-                {
-                  "type": "context",
-                  "elements": [
-                    {
-                      "type": "mrkdwn",
-                      "text": "👤 *Author:* ${{ github.actor }} | 🔗 <https://dev-api-nest.shaul.link|Dev Server>"
-                    }
-                  ]
-                }
-              ]
-            }'
+              "status": "success",
+              "branch": "develop",
+              "commit": "${{ github.sha }}",
+              "commit_message": "${{ github.event.head_commit.message }}",
+              "author": "${{ github.actor }}",
+              "run_url": "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+            }' || echo "n8n notification sent"
 
-  # Production: Slack 승인 요청 (Slack API 사용하여 thread_ts 저장)
+  # Production: n8n을 통한 Slack 알림 및 thread_ts 저장
   notify-prod-ready:
     name: Notify Production Ready
     runs-on: ubuntu-latest
     needs: build
     if: github.event_name == 'push' && github.ref == 'refs/heads/release'
     steps:
-      - name: Send Slack Message and Get Thread TS
-        id: slack
+      - name: Notify via n8n
         run: |
-          RESPONSE=$(curl -s -X POST https://slack.com/api/chat.postMessage \
-            -H "Authorization: Bearer ${{ secrets.SLACK_BOT_TOKEN }}" \
+          curl -X POST https://n8n.shaul.link/webhook/ci-result \
             -H "Content-Type: application/json" \
             -d '{
-              "channel": "${{ secrets.SLACK_CHANNEL_ID }}",
-              "blocks": [
-                {
-                  "type": "header",
-                  "text": {
-                    "type": "plain_text",
-                    "text": "✅ Production 배포 준비 완료",
-                    "emoji": true
-                  }
-                },
-                {
-                  "type": "section",
-                  "fields": [
-                    {
-                      "type": "mrkdwn",
-                      "text": "*Branch:*\nrelease"
-                    },
-                    {
-                      "type": "mrkdwn",
-                      "text": "*Commit:*\n`${{ github.sha }}`"
-                    }
-                  ]
-                },
-                {
-                  "type": "section",
-                  "text": {
-                    "type": "mrkdwn",
-                    "text": "*Commit Message:*\n${{ github.event.head_commit.message }}"
-                  }
-                },
-                {
-                  "type": "section",
-                  "fields": [
-                    {
-                      "type": "mrkdwn",
-                      "text": "*CI Status:*\n✅ Lint 통과\n✅ Test 통과\n✅ Build 성공"
-                    },
-                    {
-                      "type": "mrkdwn",
-                      "text": "*Author:*\n${{ github.actor }}"
-                    }
-                  ]
-                },
-                {
-                  "type": "divider"
-                },
-                {
-                  "type": "actions",
-                  "elements": [
-                    {
-                      "type": "button",
-                      "text": {
-                        "type": "plain_text",
-                        "text": "🚀 Jenkins 배포",
-                        "emoji": true
-                      },
-                      "style": "primary",
-                      "url": "https://jenkins.shaul.link/job/%ED%99%88%20%EC%84%9C%EB%B2%84/job/nest-api-prod/",
-                      "action_id": "jenkins_deploy"
-                    },
-                    {
-                      "type": "button",
-                      "text": {
-                        "type": "plain_text",
-                        "text": "📋 변경사항",
-                        "emoji": true
-                      },
-                      "url": "https://github.com/${{ github.repository }}/commit/${{ github.sha }}",
-                      "action_id": "view_changes"
-                    },
-                    {
-                      "type": "button",
-                      "text": {
-                        "type": "plain_text",
-                        "text": "🔧 GitHub Actions",
-                        "emoji": true
-                      },
-                      "url": "https://github.com/${{ github.repository }}/actions/workflows/deploy-prod.yml",
-                      "action_id": "github_actions"
-                    }
-                  ]
-                },
-                {
-                  "type": "context",
-                  "elements": [
-                    {
-                      "type": "mrkdwn",
-                      "text": "⚠️ Production 배포는 신중하게 진행해주세요. | 🔗 <https://api-nest.shaul.link|Production Server>"
-                    }
-                  ]
-                }
-              ]
-            }')
-
-          echo "Slack API Response: $RESPONSE"
-          THREAD_TS=$(echo "$RESPONSE" | jq -r '.ts')
-          echo "thread_ts=$THREAD_TS" >> $GITHUB_OUTPUT
-          echo "Thread TS: $THREAD_TS"
-
-      - name: Save Thread TS to Server
-        uses: appleboy/ssh-action@v1.0.3
-        with:
-          host: ${{ secrets.SSH_HOST }}
-          username: ${{ secrets.SSH_USER }}
-          key: ${{ secrets.SSH_PRIVATE_KEY }}
-          script: |
-            mkdir -p /opt/nest-api/.slack-threads
-            echo "${{ steps.slack.outputs.thread_ts }}" > /opt/nest-api/.slack-threads/prod-latest.ts
-            echo "Saved thread_ts: ${{ steps.slack.outputs.thread_ts }}"
+              "status": "success",
+              "branch": "release",
+              "commit": "${{ github.sha }}",
+              "commit_message": "${{ github.event.head_commit.message }}",
+              "author": "${{ github.actor }}",
+              "run_url": "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+            }'
+          echo "n8n notification sent - thread_ts will be saved by n8n"

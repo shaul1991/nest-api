@@ -1,0 +1,246 @@
+{
+  "name": "CI Result Notify",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "ci-result",
+        "options": {}
+      },
+      "id": "webhook-ci",
+      "name": "Webhook CI Result",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [250, 300],
+      "webhookId": "ci-result"
+    },
+    {
+      "parameters": {
+        "rules": {
+          "rules": [
+            {
+              "outputKey": "success",
+              "conditions": {
+                "options": { "version": 2 },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.status }}",
+                    "rightValue": "success",
+                    "operator": { "type": "string", "operation": "equals" }
+                  }
+                ]
+              }
+            },
+            {
+              "outputKey": "failure",
+              "conditions": {
+                "options": { "version": 2 },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.status }}",
+                    "rightValue": "failure",
+                    "operator": { "type": "string", "operation": "equals" }
+                  }
+                ]
+              }
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "switch-status",
+      "name": "Switch Status",
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3,
+      "position": [450, 300]
+    },
+    {
+      "parameters": {
+        "rules": {
+          "rules": [
+            {
+              "outputKey": "develop",
+              "conditions": {
+                "options": { "version": 2 },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.branch }}",
+                    "rightValue": "develop",
+                    "operator": { "type": "string", "operation": "equals" }
+                  }
+                ]
+              }
+            },
+            {
+              "outputKey": "release",
+              "conditions": {
+                "options": { "version": 2 },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.branch }}",
+                    "rightValue": "release",
+                    "operator": { "type": "string", "operation": "equals" }
+                  }
+                ]
+              }
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "switch-branch-success",
+      "name": "Switch Branch (Success)",
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3,
+      "position": [650, 200]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://slack.com/api/chat.postMessage",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"channel\": \"C0A7R2W47S7\",\n  \"blocks\": [\n    {\n      \"type\": \"header\",\n      \"text\": {\n        \"type\": \"plain_text\",\n        \"text\": \"✅ CI 성공 - {{ $('Webhook CI Result').item.json.branch }}\",\n        \"emoji\": true\n      }\n    },\n    {\n      \"type\": \"section\",\n      \"fields\": [\n        {\n          \"type\": \"mrkdwn\",\n          \"text\": \"*Branch:*\\n{{ $('Webhook CI Result').item.json.branch }}\"\n        },\n        {\n          \"type\": \"mrkdwn\",\n          \"text\": \"*Commit:*\\n`{{ $('Webhook CI Result').item.json.commit.substring(0, 7) }}`\"\n        }\n      ]\n    },\n    {\n      \"type\": \"section\",\n      \"text\": {\n        \"type\": \"mrkdwn\",\n        \"text\": \"*Message:*\\n{{ $('Webhook CI Result').item.json.commit_message }}\"\n      }\n    },\n    {\n      \"type\": \"context\",\n      \"elements\": [\n        {\n          \"type\": \"mrkdwn\",\n          \"text\": \"👤 {{ $('Webhook CI Result').item.json.author }}\"\n        }\n      ]\n    },\n    {\n      \"type\": \"divider\"\n    },\n    {\n      \"type\": \"actions\",\n      \"elements\": [\n        {\n          \"type\": \"button\",\n          \"text\": {\n            \"type\": \"plain_text\",\n            \"text\": \"📋 Actions 로그\",\n            \"emoji\": true\n          },\n          \"url\": \"{{ $('Webhook CI Result').item.json.run_url }}\"\n        },\n        {\n          \"type\": \"button\",\n          \"text\": {\n            \"type\": \"plain_text\",\n            \"text\": \"🔍 커밋 상세\",\n            \"emoji\": true\n          },\n          \"url\": \"https://github.com/shaul1991/nest-api/commit/{{ $('Webhook CI Result').item.json.commit }}\"\n        }\n      ]\n    }\n  ]\n}",
+        "options": {}
+      },
+      "id": "slack-develop-success",
+      "name": "Slack Develop Success",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [900, 100],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "slack-bot",
+          "name": "Slack Bot Token"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://slack.com/api/chat.postMessage",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"channel\": \"C0A7R2W47S7\",\n  \"blocks\": [\n    {\n      \"type\": \"header\",\n      \"text\": {\n        \"type\": \"plain_text\",\n        \"text\": \"✅ Production 배포 준비 완료\",\n        \"emoji\": true\n      }\n    },\n    {\n      \"type\": \"section\",\n      \"fields\": [\n        {\n          \"type\": \"mrkdwn\",\n          \"text\": \"*Branch:*\\nrelease\"\n        },\n        {\n          \"type\": \"mrkdwn\",\n          \"text\": \"*Commit:*\\n`{{ $('Webhook CI Result').item.json.commit.substring(0, 7) }}`\"\n        }\n      ]\n    },\n    {\n      \"type\": \"section\",\n      \"text\": {\n        \"type\": \"mrkdwn\",\n        \"text\": \"*Message:*\\n{{ $('Webhook CI Result').item.json.commit_message }}\"\n      }\n    },\n    {\n      \"type\": \"section\",\n      \"fields\": [\n        {\n          \"type\": \"mrkdwn\",\n          \"text\": \"*CI Status:*\\n✅ Lint 통과\\n✅ Test 통과\\n✅ Build 성공\"\n        },\n        {\n          \"type\": \"mrkdwn\",\n          \"text\": \"*Author:*\\n{{ $('Webhook CI Result').item.json.author }}\"\n        }\n      ]\n    },\n    {\n      \"type\": \"divider\"\n    },\n    {\n      \"type\": \"actions\",\n      \"elements\": [\n        {\n          \"type\": \"button\",\n          \"text\": {\n            \"type\": \"plain_text\",\n            \"text\": \"🚀 Jenkins 배포\",\n            \"emoji\": true\n          },\n          \"style\": \"primary\",\n          \"url\": \"https://jenkins.shaul.link/job/%ED%99%88%20%EC%84%9C%EB%B2%84/job/nest-api-prod/\"\n        },\n        {\n          \"type\": \"button\",\n          \"text\": {\n            \"type\": \"plain_text\",\n            \"text\": \"📋 Actions 로그\",\n            \"emoji\": true\n          },\n          \"url\": \"{{ $('Webhook CI Result').item.json.run_url }}\"\n        },\n        {\n          \"type\": \"button\",\n          \"text\": {\n            \"type\": \"plain_text\",\n            \"text\": \"🔍 커밋 상세\",\n            \"emoji\": true\n          },\n          \"url\": \"https://github.com/shaul1991/nest-api/commit/{{ $('Webhook CI Result').item.json.commit }}\"\n        }\n      ]\n    },\n    {\n      \"type\": \"context\",\n      \"elements\": [\n        {\n          \"type\": \"mrkdwn\",\n          \"text\": \"⚠️ Production 배포는 신중하게 진행해주세요.\"\n        }\n      ]\n    }\n  ]\n}",
+        "options": {}
+      },
+      "id": "slack-release-success",
+      "name": "Slack Release Success",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [900, 300],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "slack-bot",
+          "name": "Slack Bot Token"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "fileName": "/opt/nest-api/.slack-threads/prod-latest.ts",
+        "options": {}
+      },
+      "id": "write-thread-ts",
+      "name": "Save Thread TS",
+      "type": "n8n-nodes-base.writeToFile",
+      "typeVersion": 1,
+      "position": [1150, 300]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "thread_ts",
+              "name": "thread_ts",
+              "value": "={{ $json.ts }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "set-thread-ts",
+      "name": "Set Thread TS",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [1100, 300]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://slack.com/api/chat.postMessage",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"channel\": \"C0A7R2W47S7\",\n  \"blocks\": [\n    {\n      \"type\": \"header\",\n      \"text\": {\n        \"type\": \"plain_text\",\n        \"text\": \"❌ CI 실패 - {{ $('Webhook CI Result').item.json.branch }}\",\n        \"emoji\": true\n      }\n    },\n    {\n      \"type\": \"section\",\n      \"fields\": [\n        {\n          \"type\": \"mrkdwn\",\n          \"text\": \"*Branch:*\\n{{ $('Webhook CI Result').item.json.branch }}\"\n        },\n        {\n          \"type\": \"mrkdwn\",\n          \"text\": \"*Commit:*\\n`{{ $('Webhook CI Result').item.json.commit.substring(0, 7) }}`\"\n        }\n      ]\n    },\n    {\n      \"type\": \"section\",\n      \"text\": {\n        \"type\": \"mrkdwn\",\n        \"text\": \"*Message:*\\n{{ $('Webhook CI Result').item.json.commit_message }}\"\n      }\n    },\n    {\n      \"type\": \"context\",\n      \"elements\": [\n        {\n          \"type\": \"mrkdwn\",\n          \"text\": \"👤 {{ $('Webhook CI Result').item.json.author }} | ⚠️ CI 로그를 확인해주세요.\"\n        }\n      ]\n    },\n    {\n      \"type\": \"divider\"\n    },\n    {\n      \"type\": \"actions\",\n      \"elements\": [\n        {\n          \"type\": \"button\",\n          \"text\": {\n            \"type\": \"plain_text\",\n            \"text\": \"🔍 로그 확인\",\n            \"emoji\": true\n          },\n          \"style\": \"danger\",\n          \"url\": \"{{ $('Webhook CI Result').item.json.run_url }}\"\n        }\n      ]\n    }\n  ]\n}",
+        "options": {}
+      },
+      "id": "slack-failure",
+      "name": "Slack CI Failure",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [650, 450],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "slack-bot",
+          "name": "Slack Bot Token"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Webhook CI Result": {
+      "main": [
+        [
+          { "node": "Switch Status", "type": "main", "index": 0 }
+        ]
+      ]
+    },
+    "Switch Status": {
+      "main": [
+        [
+          { "node": "Switch Branch (Success)", "type": "main", "index": 0 }
+        ],
+        [
+          { "node": "Slack CI Failure", "type": "main", "index": 0 }
+        ]
+      ]
+    },
+    "Switch Branch (Success)": {
+      "main": [
+        [
+          { "node": "Slack Develop Success", "type": "main", "index": 0 }
+        ],
+        [
+          { "node": "Slack Release Success", "type": "main", "index": 0 }
+        ]
+      ]
+    },
+    "Slack Release Success": {
+      "main": [
+        [
+          { "node": "Set Thread TS", "type": "main", "index": 0 }
+        ]
+      ]
+    },
+    "Set Thread TS": {
+      "main": [
+        [
+          { "node": "Save Thread TS", "type": "main", "index": 0 }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "tags": ["ci", "slack", "nest-api"]
+}
