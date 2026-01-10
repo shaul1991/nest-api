@@ -1,6 +1,7 @@
 import { NestFactory } from '@nestjs/core';
 import { ValidationPipe } from '@nestjs/common';
 import { AppModule } from './app.module';
+import { setupSwagger } from './config/swagger.config';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
@@ -17,6 +18,13 @@ async function bootstrap() {
     origin: process.env.CORS_ORIGIN?.split(',') || '*',
     credentials: true,
   });
+
+  // Swagger는 production 환경에서 비활성화
+  const nodeEnv = process.env.NODE_ENV;
+  if (nodeEnv !== 'production') {
+    setupSwagger(app);
+    console.log('Swagger documentation available at /api-docs');
+  }
 
   const port = process.env.PORT || 3000;
   await app.listen(port);
