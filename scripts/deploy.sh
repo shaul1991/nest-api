@@ -239,15 +239,11 @@ main() {
     # Step 4: Update active slot state
     echo "${TARGET_SLOT}" > "${STATE_FILE}-${ENV}"
     echo -e "${GREEN}Active slot updated to: ${TARGET_SLOT}${NC}"
+    echo -e "${YELLOW}Previous slot (${ACTIVE_SLOT}) kept running for rollback${NC}"
     echo ""
 
-    # Step 5: Stop old slot
-    echo -e "${YELLOW}Step 5: Stopping old slot (${ACTIVE_SLOT})...${NC}"
-    docker compose -p "${PROJECT_NAME}" -f "${COMPOSE_FILE}" --env-file "${ENV_FILE}" --profile "${ACTIVE_SLOT}" down --remove-orphans 2>/dev/null || true
-    echo ""
-
-    # Step 6: Cleanup old images
-    echo -e "${YELLOW}Step 6: Cleaning up...${NC}"
+    # Step 5: Cleanup old images
+    echo -e "${YELLOW}Step 5: Cleaning up...${NC}"
     cleanup_old_images
     echo ""
 
