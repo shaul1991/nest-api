@@ -53,6 +53,6 @@ export class ChatParticipant {
   @CreateDateColumn({ name: 'joined_at' })
   joinedAt: Date;
 
-  @Column({ name: 'last_active_at', nullable: true })
+  @Column({ type: 'timestamp', name: 'last_active_at', nullable: true })
   lastActiveAt: Date | null;
 }
