@@ -87,11 +87,12 @@ jobs:
         run: npm run test:e2e
         env:
           NODE_ENV: test
-          DATABASE_HOST: localhost
-          DATABASE_PORT: 5432
-          DATABASE_NAME: nest_api_test
-          DATABASE_USER: test
-          DATABASE_PASSWORD: test
+          # E2E 테스트용 환경변수 (DB_* 형식)
+          DB_HOST: localhost
+          DB_PORT: 5432
+          DB_NAME: nest_api_test
+          DB_USER: test
+          DB_PASSWORD: test
           REDIS_HOST: localhost
           REDIS_PORT: 6379
           REDIS_PASSWORD: ''
