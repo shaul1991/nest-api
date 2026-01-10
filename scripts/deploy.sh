@@ -18,6 +18,7 @@ NC='\033[0m' # No Color
 # Environment (prod or dev)
 ENV="${1:-prod}"
 ENV_FILE="${PROJECT_DIR}/.env.${ENV/prod/production}"
+PROJECT_NAME="nest-api-${ENV}"
 
 if [ "${ENV}" == "prod" ]; then
     BLUE_PORT=3100
@@ -34,6 +35,7 @@ IMAGE_TAG=$(date +%Y%m%d-%H%M%S)
 
 echo -e "${YELLOW}=== NestJS Blue-Green Deployment ===${NC}"
 echo "Environment: ${ENV}"
+echo "Project Name: ${PROJECT_NAME}"
 echo "Image Tag: ${IMAGE_TAG}"
 echo "Project Dir: ${PROJECT_DIR}"
 echo "Compose File: ${COMPOSE_FILE}"
@@ -69,13 +71,14 @@ get_port_for_slot() {
     fi
 }
 
-# Function to force remove container by name
-force_remove_container() {
-    local container_name=$1
-    if docker ps -a --format '{{.Names}}' | grep -q "^${container_name}$"; then
-        echo "Removing existing container: ${container_name}"
-        docker rm -f "${container_name}" 2>/dev/null || true
-    fi
+# Function to cleanup old containers with legacy naming
+cleanup_legacy_containers() {
+    echo -e "${YELLOW}Cleaning up legacy containers...${NC}"
+    # Remove old fixed-name containers if they exist
+    docker rm -f "nest-api-blue-${ENV}" 2>/dev/null || true
+    docker rm -f "nest-api-green-${ENV}" 2>/dev/null || true
+    docker rm -f "nest-api-blue-prod" 2>/dev/null || true
+    docker rm -f "nest-api-green-prod" 2>/dev/null || true
 }
 
 # Function to wait for health check
@@ -159,14 +162,13 @@ main() {
     TARGET_SLOT=$(get_target_slot)
     TARGET_PORT=$(get_port_for_slot "${TARGET_SLOT}")
 
-    # Container name follows pattern: nest-api-{slot}-{env}
-    TARGET_CONTAINER="nest-api-${TARGET_SLOT}-${ENV}"
-
     echo "Active slot: ${ACTIVE_SLOT}"
     echo "Target slot: ${TARGET_SLOT}"
     echo "Target port: ${TARGET_PORT}"
-    echo "Target container: ${TARGET_CONTAINER}"
     echo ""
+
+    # Cleanup legacy containers with fixed names (one-time migration)
+    cleanup_legacy_containers
 
     # Step 1: Build new image with tag
     echo -e "${YELLOW}Step 1: Building new image...${NC}"
@@ -183,25 +185,22 @@ main() {
     export BLUE_PORT
     export GREEN_PORT
 
-    # Force remove existing container to prevent name conflict
-    # This handles cases where container was created outside of compose project
-    force_remove_container "${TARGET_CONTAINER}"
-
-    # Stop target slot via compose if running (cleanup networks etc)
-    docker compose -p "nest-api-${ENV}" -f "${COMPOSE_FILE}" --env-file "${ENV_FILE}" --profile "${TARGET_SLOT}" down 2>/dev/null || true
+    # Stop target slot with orphan cleanup
+    echo "Stopping target slot and removing orphans..."
+    docker compose -p "${PROJECT_NAME}" -f "${COMPOSE_FILE}" --env-file "${ENV_FILE}" --profile "${TARGET_SLOT}" down --remove-orphans 2>/dev/null || true
 
     # Debug: Show the command being executed
-    echo "Running: docker compose -p nest-api-${ENV} -f ${COMPOSE_FILE} --env-file ${ENV_FILE} --profile ${TARGET_SLOT} up -d"
+    echo "Running: docker compose -p ${PROJECT_NAME} -f ${COMPOSE_FILE} --env-file ${ENV_FILE} --profile ${TARGET_SLOT} up -d"
 
     # Start target slot
-    docker compose -p "nest-api-${ENV}" -f "${COMPOSE_FILE}" --env-file "${ENV_FILE}" --profile "${TARGET_SLOT}" up -d
+    docker compose -p "${PROJECT_NAME}" -f "${COMPOSE_FILE}" --env-file "${ENV_FILE}" --profile "${TARGET_SLOT}" up -d
     echo ""
 
     # Step 3: Wait for health check
     echo -e "${YELLOW}Step 3: Health check...${NC}"
     if ! wait_for_health "${TARGET_PORT}"; then
         echo -e "${RED}Deployment failed! Rolling back...${NC}"
-        docker compose -p "nest-api-${ENV}" -f "${COMPOSE_FILE}" --env-file "${ENV_FILE}" --profile "${TARGET_SLOT}" down
+        docker compose -p "${PROJECT_NAME}" -f "${COMPOSE_FILE}" --env-file "${ENV_FILE}" --profile "${TARGET_SLOT}" down
         exit 1
     fi
     echo ""
@@ -216,9 +215,9 @@ main() {
     echo -e "${GREEN}Active slot updated to: ${TARGET_SLOT}${NC}"
     echo ""
 
-    # Step 6: Stop old slot (optional - keep for quick rollback)
+    # Step 6: Stop old slot
     echo -e "${YELLOW}Step 5: Stopping old slot (${ACTIVE_SLOT})...${NC}"
-    docker compose -p "nest-api-${ENV}" -f "${COMPOSE_FILE}" --env-file "${ENV_FILE}" --profile "${ACTIVE_SLOT}" down 2>/dev/null || true
+    docker compose -p "${PROJECT_NAME}" -f "${COMPOSE_FILE}" --env-file "${ENV_FILE}" --profile "${ACTIVE_SLOT}" down --remove-orphans 2>/dev/null || true
     echo ""
 
     # Step 7: Cleanup old images
