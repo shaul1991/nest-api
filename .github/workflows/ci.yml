@@ -263,7 +263,7 @@ jobs:
                         "emoji": true
                       },
                       "style": "primary",
-                      "url": "https://jenkins.shaul.link/job/홈%20서버/job/nest-api-prod/",
+                      "url": "https://jenkins.shaul.link/job/%ED%99%88%20%EC%84%9C%EB%B2%84/job/nest-api-prod/",
                       "action_id": "jenkins_deploy"
                     },
                     {
