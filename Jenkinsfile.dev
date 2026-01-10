@@ -27,6 +27,20 @@ pipeline {
             }
         }
 
+        stage('Copy Env File') {
+            steps {
+                script {
+                    // 호스트의 .env.dev 파일을 Jenkins 워크스페이스로 복사
+                    sh '''
+                        docker run --rm \
+                            -v /opt/nest-api:/host \
+                            -v ${WORKSPACE}:/workspace \
+                            alpine cp /host/.env.dev /workspace/.env.dev
+                    '''
+                }
+            }
+        }
+
         stage('Build Docker Image') {
             steps {
                 script {
@@ -41,9 +55,12 @@ pipeline {
         stage('Determine Target Slot') {
             steps {
                 script {
-                    // 현재 활성 슬롯 확인
+                    // 현재 활성 슬롯 확인 (호스트에서)
                     def activeSlot = sh(
-                        script: 'cat /opt/nest-api/.active-slot-dev 2>/dev/null || echo "blue"',
+                        script: '''
+                            docker run --rm -v /opt/nest-api:/host alpine \
+                                cat /host/.active-slot-dev 2>/dev/null || echo "blue"
+                        ''',
                         returnStdout: true
                     ).trim()
                     
