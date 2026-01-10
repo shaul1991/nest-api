@@ -34,7 +34,7 @@ describe('AuthService', () => {
     permissions: [],
   };
 
-  const mockUser: User = {
+  const mockUser = {
     id: 'user-uuid',
     email: 'test@example.com',
     password: 'hashedPassword123',
@@ -46,26 +46,16 @@ describe('AuthService', () => {
     createdAt: new Date(),
     updatedAt: new Date(),
     roles: [mockRole],
-    get roleNames() {
-      return this.roles?.map((role) => role.name) || [];
-    },
-    get permissions() {
-      return [];
-    },
-  };
+    roleNames: ['USER'],
+    permissions: [],
+  } as User;
 
-  const mockInactiveUser: User = {
+  const mockInactiveUser = {
     ...mockUser,
     id: 'inactive-user-uuid',
     email: 'inactive@example.com',
     isActive: false,
-    get roleNames() {
-      return this.roles?.map((role) => role.name) || [];
-    },
-    get permissions() {
-      return [];
-    },
-  };
+  } as User;
 
   beforeEach(async () => {
     const mockUsersService = {

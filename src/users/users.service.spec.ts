@@ -24,7 +24,7 @@ describe('UsersService', () => {
     permissions: [],
   };
 
-  const mockUser: User = {
+  const mockUser = {
     id: 'user-uuid',
     email: 'test@example.com',
     password: 'hashedPassword123',
@@ -36,13 +36,9 @@ describe('UsersService', () => {
     createdAt: new Date(),
     updatedAt: new Date(),
     roles: [mockRole],
-    get roleNames() {
-      return this.roles?.map((role) => role.name) || [];
-    },
-    get permissions() {
-      return [];
-    },
-  };
+    roleNames: [RoleType.USER],
+    permissions: [],
+  } as User;
 
   beforeEach(async () => {
     const mockUserRepository = {
