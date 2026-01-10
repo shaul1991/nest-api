@@ -195,18 +195,21 @@ jobs:
               ]
             }'
 
-  # Production: Slack 승인 요청
+  # Production: Slack 승인 요청 (Slack API 사용하여 thread_ts 저장)
   notify-prod-ready:
     name: Notify Production Ready
     runs-on: ubuntu-latest
     needs: build
     if: github.event_name == 'push' && github.ref == 'refs/heads/release'
     steps:
-      - name: Send Slack Approval Request
+      - name: Send Slack Message and Get Thread TS
+        id: slack
         run: |
-          curl -X POST ${{ secrets.SLACK_WEBHOOK_URL }} \
+          RESPONSE=$(curl -s -X POST https://slack.com/api/chat.postMessage \
+            -H "Authorization: Bearer ${{ secrets.SLACK_BOT_TOKEN }}" \
             -H "Content-Type: application/json" \
             -d '{
+              "channel": "${{ secrets.SLACK_CHANNEL_ID }}",
               "blocks": [
                 {
                   "type": "header",
@@ -298,4 +301,20 @@ jobs:
                   ]
                 }
               ]
-            }'
+            }')
+
+          echo "Slack API Response: $RESPONSE"
+          THREAD_TS=$(echo "$RESPONSE" | jq -r '.ts')
+          echo "thread_ts=$THREAD_TS" >> $GITHUB_OUTPUT
+          echo "Thread TS: $THREAD_TS"
+
+      - name: Save Thread TS to Server
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.SSH_HOST }}
+          username: ${{ secrets.SSH_USER }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          script: |
+            mkdir -p /opt/nest-api/.slack-threads
+            echo "${{ steps.slack.outputs.thread_ts }}" > /opt/nest-api/.slack-threads/prod-latest.ts
+            echo "Saved thread_ts: ${{ steps.slack.outputs.thread_ts }}"
