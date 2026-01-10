@@ -259,18 +259,18 @@ jobs:
                       "type": "button",
                       "text": {
                         "type": "plain_text",
-                        "text": "🚀 Production 배포",
+                        "text": "🚀 Jenkins 배포",
                         "emoji": true
                       },
                       "style": "primary",
-                      "url": "https://github.com/${{ github.repository }}/actions/workflows/deploy-prod.yml",
-                      "action_id": "deploy_prod"
+                      "url": "https://jenkins.shaul.link/job/홈%20서버/job/nest-api-prod/",
+                      "action_id": "jenkins_deploy"
                     },
                     {
                       "type": "button",
                       "text": {
                         "type": "plain_text",
-                        "text": "📋 변경사항 확인",
+                        "text": "📋 변경사항",
                         "emoji": true
                       },
                       "url": "https://github.com/${{ github.repository }}/commit/${{ github.sha }}",
@@ -280,12 +280,11 @@ jobs:
                       "type": "button",
                       "text": {
                         "type": "plain_text",
-                        "text": "❌ 취소",
+                        "text": "🔧 GitHub Actions",
                         "emoji": true
                       },
-                      "style": "danger",
-                      "url": "https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}",
-                      "action_id": "cancel_deploy"
+                      "url": "https://github.com/${{ github.repository }}/actions/workflows/deploy-prod.yml",
+                      "action_id": "github_actions"
                     }
                   ]
                 },
