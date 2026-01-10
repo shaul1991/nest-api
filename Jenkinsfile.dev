@@ -30,7 +30,7 @@ pipeline {
         stage('Inject Config Files') {
             steps {
                 configFileProvider([
-                    configFile(fileId: '0b3b8c2d-ae17-47d6-b6f8-3749555c9b2f', targetLocation: '.env.dev')
+                    configFile(fileId: 'nest-api-env-dev', targetLocation: '.env.dev')
                 ]) {
                     echo "Config file injected: .env.dev"
                 }
@@ -72,7 +72,7 @@ pipeline {
         stage('Deploy to Target Slot') {
             steps {
                 configFileProvider([
-                    configFile(fileId: '0b3b8c2d-ae17-47d6-b6f8-3749555c9b2f', targetLocation: '.env.dev')
+                    configFile(fileId: 'nest-api-env-dev', targetLocation: '.env.dev')
                 ]) {
                     script {
                         // 타겟 슬롯 중지 (있으면)
