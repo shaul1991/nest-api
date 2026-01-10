@@ -22,7 +22,7 @@
     ┌───────▼──────┐ ┌───────▼──────┐ ┌───────▼──────┐
     │  Blue Slot   │ │ Green Slot   │ │   Database   │
     │  (Active)    │ │  (Standby)   │ │  PostgreSQL  │
-    │  Port 3100   │ │  Port 3102   │ │    Redis     │
+    │  Port 3100   │ │  Port 3101   │ │    Redis     │
     └──────────────┘ └──────────────┘ └──────────────┘
 ```
 
@@ -30,8 +30,8 @@
 
 | 환경 | Blue 포트 | Green 포트 | 도메인 |
 |------|-----------|------------|--------|
-| Dev | 3101 | 3103 | dev-api-nest.shaul.link |
-| Prod | 3100 | 3102 | api-nest.shaul.link |
+| Prod | 3100 | 3101 | api-nest.shaul.link |
+| Dev | 3102 | 3103 | dev-api-nest.shaul.link |
 
 ## 배포 프로세스
 
