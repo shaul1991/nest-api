@@ -5,12 +5,17 @@ pipeline {
         DOCKER_IMAGE = 'nest-api'
         ENV = 'dev'
         COMPOSE_FILE = 'docker-compose.blue-green.yml'
+        INFRA_COMPOSE_FILE = 'docker-compose.infra.yml'
         SLACK_WEBHOOK_URL = credentials('slack-webhook-url')
         
         // Blue-Green 포트 설정
         BLUE_PORT = '3101'
         GREEN_PORT = '3103'
         DOMAIN = 'dev-api-nest.shaul.link'
+        
+        // 인프라 프로젝트 이름 (공유)
+        INFRA_PROJECT = 'nest-api-infra-dev'
+        NETWORK_NAME = 'nest-api-dev-network'
     }
 
     stages {
@@ -37,6 +42,44 @@ pipeline {
             }
         }
 
+        stage('Ensure Infrastructure') {
+            steps {
+                configFileProvider([
+                    configFile(fileId: 'nest-api-env-dev', targetLocation: '.env.dev')
+                ]) {
+                    script {
+                        // 공유 네트워크 생성 (없으면)
+                        sh """
+                            docker network create ${NETWORK_NAME} 2>/dev/null || true
+                        """
+                        
+                        // 인프라 서비스 시작 (Postgres, Redis)
+                        sh """
+                            export ENV=${ENV}
+                            docker compose -p ${INFRA_PROJECT} -f ${INFRA_COMPOSE_FILE} \
+                                --env-file .env.dev up -d
+                        """
+                        
+                        // 인프라 헬스체크 대기
+                        sh """
+                            echo "Waiting for infrastructure to be healthy..."
+                            for i in 1 2 3 4 5 6 7 8 9 10 11 12; do
+                                PG_HEALTHY=\$(docker inspect --format='{{.State.Health.Status}}' nest-api-postgres-${ENV} 2>/dev/null || echo "")
+                                REDIS_HEALTHY=\$(docker inspect --format='{{.State.Health.Status}}' nest-api-redis-${ENV} 2>/dev/null || echo "")
+                                
+                                if [ "\$PG_HEALTHY" = "healthy" ] && [ "\$REDIS_HEALTHY" = "healthy" ]; then
+                                    echo "Infrastructure is healthy!"
+                                    break
+                                fi
+                                echo "Waiting... Postgres: \$PG_HEALTHY, Redis: \$REDIS_HEALTHY"
+                                sleep 5
+                            done
+                        """
+                    }
+                }
+            }
+        }
+
         stage('Build Docker Image') {
             steps {
                 script {
@@ -51,7 +94,6 @@ pipeline {
         stage('Determine Target Slot') {
             steps {
                 script {
-                    // 현재 활성 슬롯 확인
                     def activeSlot = sh(
                         script: '''
                             docker run --rm -v /opt/nest-api:/host alpine \
@@ -64,12 +106,11 @@ pipeline {
                     env.TARGET_SLOT = (activeSlot == 'blue') ? 'green' : 'blue'
                     env.TARGET_PORT = (env.TARGET_SLOT == 'blue') ? BLUE_PORT : GREEN_PORT
                     
-                    // 슬롯별 고유 프로젝트 이름 설정
+                    // 슬롯별 프로젝트 이름
                     env.TARGET_PROJECT = "nest-api-${ENV}-${env.TARGET_SLOT}"
                     env.ACTIVE_PROJECT = "nest-api-${ENV}-${env.ACTIVE_SLOT}"
                     
-                    echo "Active: ${env.ACTIVE_SLOT} (${env.ACTIVE_PROJECT})"
-                    echo "Target: ${env.TARGET_SLOT} (${env.TARGET_PROJECT}), Port: ${env.TARGET_PORT}"
+                    echo "Active: ${env.ACTIVE_SLOT}, Target: ${env.TARGET_SLOT}, Port: ${env.TARGET_PORT}"
                 }
             }
         }
@@ -82,10 +123,10 @@ pipeline {
                     script {
                         def containerName = "nest-api-${TARGET_SLOT}-${ENV}"
                         
-                        // 1. 타겟 슬롯 프로젝트 완전 정리 (고유 프로젝트 이름 사용)
+                        // 1. 기존 앱 컨테이너 정리 (인프라는 유지)
                         sh """
                             docker compose -p ${TARGET_PROJECT} -f ${COMPOSE_FILE} \
-                                --profile ${TARGET_SLOT} down --remove-orphans --volumes 2>/dev/null || true
+                                --profile ${TARGET_SLOT} down --remove-orphans 2>/dev/null || true
                         """
                         
                         // 2. 잔류 컨테이너 강제 제거
@@ -93,19 +134,18 @@ pipeline {
                             docker rm -f ${containerName} 2>/dev/null || true
                         """
                         
-                        // 3. Wait-for-deletion: 컨테이너가 완전히 삭제될 때까지 대기
+                        // 3. 컨테이너 삭제 확인
                         sh """
-                            for i in 1 2 3 4 5 6 7 8 9 10; do
+                            for i in 1 2 3 4 5; do
                                 if ! docker ps -a --format '{{.Names}}' | grep -q "^${containerName}\$"; then
-                                    echo "Container ${containerName} successfully removed"
+                                    echo "Container ${containerName} removed"
                                     break
                                 fi
-                                echo "Waiting for container removal... attempt \$i"
                                 sleep 2
                             done
                         """
                         
-                        // 4. 타겟 슬롯 시작 (고유 프로젝트 이름 + force-recreate)
+                        // 4. 새 앱 컨테이너 시작
                         sh """
                             export IMAGE_TAG=${IMAGE_TAG}
                             export DOCKER_IMAGE=${DOCKER_IMAGE}
@@ -115,7 +155,7 @@ pipeline {
                             
                             docker compose -p ${TARGET_PROJECT} -f ${COMPOSE_FILE} \
                                 --env-file .env.dev \
-                                --profile ${TARGET_SLOT} up -d --force-recreate --renew-anon-volumes
+                                --profile ${TARGET_SLOT} up -d --force-recreate
                         """
                     }
                 }
@@ -143,7 +183,6 @@ pipeline {
                     }
                     
                     if (!healthy) {
-                        // 롤백: 새 컨테이너 중지
                         sh """
                             docker compose -p ${TARGET_PROJECT} -f ${COMPOSE_FILE} \
                                 --profile ${TARGET_SLOT} down
@@ -157,7 +196,6 @@ pipeline {
         stage('Switch Traffic') {
             steps {
                 script {
-                    // Caddy 업스트림 전환
                     sh """
                         docker run --rm \
                             -v /etc/caddy:/etc/caddy \
@@ -171,7 +209,6 @@ pipeline {
                             '
                     """
                     
-                    // 활성 슬롯 상태 파일 업데이트
                     sh """
                         docker run --rm -v /opt/nest-api:/opt/nest-api alpine \
                             sh -c 'echo "${TARGET_SLOT}" > /opt/nest-api/.active-slot-dev'
@@ -183,7 +220,6 @@ pipeline {
         stage('Stop Old Slot') {
             steps {
                 script {
-                    // 이전 슬롯 정리 (고유 프로젝트 이름 사용)
                     sh """
                         docker compose -p ${ACTIVE_PROJECT} -f ${COMPOSE_FILE} \
                             --profile ${ACTIVE_SLOT} down --remove-orphans 2>/dev/null || true
@@ -196,13 +232,11 @@ pipeline {
             steps {
                 script {
                     sh '''
-                        # 최근 5개 이미지만 유지
                         docker images nest-api --format "{{.Tag}} {{.CreatedAt}}" | \
                             grep -v "latest" | grep -v "dev" | \
                             sort -k2,3 -r | tail -n +6 | awk '{print $1}' | \
                             xargs -I {} docker rmi nest-api:{} 2>/dev/null || true
                         
-                        # Dangling 이미지 정리
                         docker image prune -f
                     '''
                 }
