@@ -31,7 +31,7 @@ export class ChatRoom {
   })
   type: RoomType;
 
-  @Column({ name: 'invite_code', length: 20, nullable: true })
+  @Column({ type: 'varchar', name: 'invite_code', length: 20, nullable: true })
   inviteCode: string | null;
 
   @Column({ name: 'max_participants', default: 100 })

@@ -31,7 +31,7 @@ export class ChatMessage {
   @JoinColumn({ name: 'user_id' })
   user: User | null;
 
-  @Column({ name: 'user_id', nullable: true })
+  @Column({ type: 'uuid', name: 'user_id', nullable: true })
   userId: string | null;
 
   @Column({ type: 'varchar', name: 'guest_id', nullable: true })
