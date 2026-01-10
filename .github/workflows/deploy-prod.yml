@@ -47,13 +47,55 @@ jobs:
               ]
             }'
 
-      - name: Trigger Jenkins Deployment
-        run: |
-          curl -X POST \
-            -H "Authorization: token ${{ secrets.JENKINS_API_TOKEN }}" \
-            "${{ secrets.JENKINS_URL }}/job/홈%20서버/job/nest-api-prod/build" \
-            --fail --silent --show-error
-          echo "Jenkins deployment triggered successfully"
+      - name: Trigger Jenkins Deployment via SSH
+        uses: appleboy/ssh-action@v1.0.3
+        env:
+          JENKINS_USER: ${{ secrets.JENKINS_USER }}
+          JENKINS_API_TOKEN: ${{ secrets.JENKINS_API_TOKEN }}
+        with:
+          host: ${{ secrets.SSH_HOST }}
+          port: ${{ secrets.SSH_PORT }}
+          username: ${{ secrets.SSH_USER }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          envs: JENKINS_USER,JENKINS_API_TOKEN
+          script: |
+            echo "Triggering Jenkins job nest-api-prod via localhost..."
+
+            # Jenkins localhost URL (bypasses Cloudflare)
+            JENKINS_LOCAL="http://localhost:8888"
+
+            # Try without CSRF first
+            HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" -X POST \
+              -u "${JENKINS_USER}:${JENKINS_API_TOKEN}" \
+              "${JENKINS_LOCAL}/job/홈%20서버/job/nest-api-prod/build")
+
+            if [ "$HTTP_CODE" = "201" ] || [ "$HTTP_CODE" = "200" ]; then
+              echo "Build triggered successfully (HTTP $HTTP_CODE)"
+              exit 0
+            fi
+
+            # If 403, try with CSRF crumb
+            if [ "$HTTP_CODE" = "403" ]; then
+              echo "Got 403, trying with CSRF crumb..."
+
+              CRUMB=$(curl -s -u "${JENKINS_USER}:${JENKINS_API_TOKEN}" \
+                "${JENKINS_LOCAL}/crumbIssuer/api/json" | jq -r '.crumb // empty')
+
+              if [ -n "$CRUMB" ]; then
+                curl -X POST \
+                  -u "${JENKINS_USER}:${JENKINS_API_TOKEN}" \
+                  -H "Jenkins-Crumb: $CRUMB" \
+                  "${JENKINS_LOCAL}/job/홈%20서버/job/nest-api-prod/build" \
+                  --fail --show-error
+                echo "Build triggered with CSRF crumb"
+              else
+                echo "Failed to get CSRF crumb"
+                exit 1
+              fi
+            else
+              echo "Unexpected HTTP code: $HTTP_CODE"
+              exit 1
+            fi
 
       - name: Notify on Failure
         if: failure()
