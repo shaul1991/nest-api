@@ -76,7 +76,10 @@ describe('Chat Module E2E Tests', () => {
     });
   };
 
-  const createClientSocket = (token?: string, guestId?: string): ClientSocket => {
+  const createClientSocket = (
+    token?: string,
+    guestId?: string,
+  ): ClientSocket => {
     const extraHeaders: Record<string, string> = {};
     if (token) {
       extraHeaders['authorization'] = `Bearer ${token}`;
@@ -92,7 +95,13 @@ describe('Chat Module E2E Tests', () => {
     });
   };
 
-  const waitForEvent = <T>(socket: ClientSocket, event: string, timeout = 5000): Promise<T> => {
+  // Helper function for waiting events (used in some test scenarios)
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  const _waitForEvent = <T>(
+    socket: ClientSocket,
+    event: string,
+    timeout = 5000,
+  ): Promise<T> => {
     return new Promise((resolve, reject) => {
       const timer = setTimeout(() => {
         reject(new Error(`Timeout waiting for event: ${event}`));
@@ -129,7 +138,8 @@ describe('Chat Module E2E Tests', () => {
                   secret: process.env.JWT_SECRET || 'test-jwt-secret-key',
                 },
                 jwtRefresh: {
-                  secret: process.env.JWT_REFRESH_SECRET || 'test-refresh-secret-key',
+                  secret:
+                    process.env.JWT_REFRESH_SECRET || 'test-refresh-secret-key',
                 },
                 bcrypt: {
                   saltRounds: 10,
@@ -147,7 +157,14 @@ describe('Chat Module E2E Tests', () => {
             username: configService.get<string>('database.user'),
             password: configService.get<string>('database.password'),
             database: configService.get<string>('database.name'),
-            entities: [User, Role, Permission, ChatRoom, ChatMessage, ChatParticipant],
+            entities: [
+              User,
+              Role,
+              Permission,
+              ChatRoom,
+              ChatMessage,
+              ChatParticipant,
+            ],
             synchronize: true,
             dropSchema: true,
           }),
@@ -179,7 +196,9 @@ describe('Chat Module E2E Tests', () => {
 
     roomRepository = moduleFixture.get(getRepositoryToken(ChatRoom));
     messageRepository = moduleFixture.get(getRepositoryToken(ChatMessage));
-    participantRepository = moduleFixture.get(getRepositoryToken(ChatParticipant));
+    participantRepository = moduleFixture.get(
+      getRepositoryToken(ChatParticipant),
+    );
     userRepository = moduleFixture.get(getRepositoryToken(User));
     roleRepository = moduleFixture.get(getRepositoryToken(Role));
     jwtService = moduleFixture.get(JwtService);
@@ -469,14 +488,24 @@ describe('Chat Module E2E Tests', () => {
           client.emit('join_room', { roomId, nickname });
         };
 
-        const onJoined = (nickname: string) => {
+        // eslint-disable-next-line @typescript-eslint/no-unused-vars
+        const onJoined = (_nickname: string) => {
           joinedCount++;
           if (joinedCount === 3) {
             // 모든 사용자가 입장한 후 메시지 전송
             setTimeout(() => {
-              client1.emit('send_message', { roomId, content: 'Hello from User1' });
-              client2.emit('send_message', { roomId, content: 'Hello from User2' });
-              client3.emit('send_message', { roomId, content: 'Hello from User3' });
+              client1.emit('send_message', {
+                roomId,
+                content: 'Hello from User1',
+              });
+              client2.emit('send_message', {
+                roomId,
+                content: 'Hello from User2',
+              });
+              client3.emit('send_message', {
+                roomId,
+                content: 'Hello from User3',
+              });
             }, 100);
           }
         };
@@ -518,7 +547,7 @@ describe('Chat Module E2E Tests', () => {
       });
 
       // 4. 모든 사용자가 모든 메시지를 받았는지 확인
-      for (const [user, messages] of receivedMessages) {
+      for (const messages of receivedMessages.values()) {
         expect(messages).toContain('Hello from User1');
         expect(messages).toContain('Hello from User2');
         expect(messages).toContain('Hello from User3');
@@ -545,7 +574,7 @@ describe('Chat Module E2E Tests', () => {
 
       const client = createClientSocket(undefined, guestId);
 
-      await new Promise<void>((resolve, reject) => {
+      await new Promise<void>((resolve) => {
         let messageCount = 0;
         let errorReceived = false;
 
@@ -570,9 +599,12 @@ describe('Chat Module E2E Tests', () => {
           messageCount++;
         });
 
-        client.on('error', (error) => {
+        client.on('error', (error: { message?: string; code?: string }) => {
           // Rate limit 에러가 발생해야 함
-          if (error.message?.includes('속도 제한') || error.code === 'SEND_FAILED') {
+          if (
+            error.message?.includes('속도 제한') ||
+            error.code === 'SEND_FAILED'
+          ) {
             errorReceived = true;
           }
         });

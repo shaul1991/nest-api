@@ -1,5 +1,11 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { IsString, IsOptional, IsUUID, MaxLength, MinLength } from 'class-validator';
+import {
+  IsString,
+  IsOptional,
+  IsUUID,
+  MaxLength,
+  MinLength,
+} from 'class-validator';
 
 export class JoinRoomDto {
   @ApiProperty({

@@ -10,7 +10,7 @@ import {
   WsException,
 } from '@nestjs/websockets';
 import { Server, Socket } from 'socket.io';
-import { Logger, UseFilters } from '@nestjs/common';
+import { Logger } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
 import { ChatService } from './chat.service';
@@ -18,12 +18,19 @@ import { ChatRedisService } from './chat-redis.service';
 import { JoinRoomDto, LeaveRoomDto } from './dto/join-room.dto';
 import { SendMessageDto, TypingDto } from './dto/send-message.dto';
 import {
-  AuthenticatedSocket,
   SocketData,
   MessagePayload,
   ParticipantPayload,
 } from './interfaces/socket-data.interface';
-import { ParticipantType, MessageType } from './interfaces/participant-type.enum';
+import { ParticipantType } from './interfaces/participant-type.enum';
+import { User } from '../users/entities/user.entity';
+
+interface JwtPayload {
+  sub: string;
+  email?: string;
+  iat?: number;
+  exp?: number;
+}
 
 @WebSocketGateway({
   namespace: '/chat',
@@ -47,7 +54,8 @@ export class ChatGateway
     private readonly configService: ConfigService,
   ) {}
 
-  afterInit(server: Server) {
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  afterInit(_server: Server) {
     this.logger.log('ChatGateway initialized');
   }
 
@@ -60,7 +68,9 @@ export class ChatGateway
         // JWT 토큰 검증 -> 인증 사용자
         try {
           const secret = this.configService.get<string>('auth.jwt.secret');
-          const payload = await this.jwtService.verifyAsync(token, { secret });
+          const payload = await this.jwtService.verifyAsync<JwtPayload>(token, {
+            secret,
+          });
 
           client.data = {
             participantType: ParticipantType.USER,
@@ -73,14 +83,21 @@ export class ChatGateway
           await this.chatRedisService.setUserSocket(payload.sub, client.id);
           this.logger.log(`Authenticated user connected: ${payload.sub}`);
         } catch (err) {
-          this.logger.warn(`Invalid token: ${err.message}`);
-          client.emit('error', { code: 'INVALID_TOKEN', message: '유효하지 않은 토큰입니다.' });
+          const errorMessage =
+            err instanceof Error ? err.message : 'Unknown error';
+          this.logger.warn(`Invalid token: ${errorMessage}`);
+          client.emit('error', {
+            code: 'INVALID_TOKEN',
+            message: '유효하지 않은 토큰입니다.',
+          });
           client.disconnect();
           return;
         }
       } else {
         // 게스트 처리
-        const session = await this.chatService.getOrCreateGuestSession(guestIdFromCookie || undefined);
+        const session = await this.chatService.getOrCreateGuestSession(
+          guestIdFromCookie || undefined,
+        );
 
         client.data = {
           participantType: ParticipantType.GUEST,
@@ -101,12 +118,15 @@ export class ChatGateway
       }
 
       // Redis에 소켓 연결 정보 저장
+      const socketData = client.data as SocketData;
       await this.chatRedisService.setSocketConnection(client.id, {
-        ...client.data,
-        currentRooms: Array.from(client.data.currentRooms || []),
+        ...socketData,
+        currentRooms: Array.from(socketData.currentRooms || []),
       });
     } catch (error) {
-      this.logger.error(`Connection error: ${error.message}`);
+      const errorMessage =
+        error instanceof Error ? error.message : 'Unknown error';
+      this.logger.error(`Connection error: ${errorMessage}`);
       client.disconnect();
     }
   }
@@ -151,7 +171,9 @@ export class ChatGateway
       const key = `join:${data.userId || data.guestId}`;
       const rateLimit = await this.chatRedisService.checkRateLimit(key, 10, 60);
       if (!rateLimit.allowed) {
-        throw new WsException('너무 많은 요청입니다. 잠시 후 다시 시도해주세요.');
+        throw new WsException(
+          '너무 많은 요청입니다. 잠시 후 다시 시도해주세요.',
+        );
       }
 
       // 닉네임 업데이트 (게스트인 경우)
@@ -159,20 +181,25 @@ export class ChatGateway
       if (!data.isAuthenticated && dto.nickname) {
         nickname = dto.nickname;
         data.nickname = nickname;
-        await this.chatRedisService.updateGuestNickname(data.guestId!, nickname);
+        await this.chatRedisService.updateGuestNickname(
+          data.guestId!,
+          nickname,
+        );
       }
 
       // 채팅방 입장
       const participant = await this.chatService.joinRoom(
         dto.roomId,
         nickname,
-        data.isAuthenticated ? ({ id: data.userId } as any) : undefined,
+        data.isAuthenticated
+          ? ({ id: data.userId } as Partial<User> as User)
+          : undefined,
         data.guestId,
         dto.inviteCode,
       );
 
       // Socket.io room join
-      client.join(dto.roomId);
+      await client.join(dto.roomId);
       data.currentRooms.add(dto.roomId);
 
       // Redis 온라인 상태 업데이트
@@ -210,10 +237,12 @@ export class ChatGateway
 
       this.logger.log(`${nickname} joined room ${dto.roomId}`);
     } catch (error) {
-      this.logger.error(`Join room error: ${error.message}`);
+      const errorMessage =
+        error instanceof Error ? error.message : '채팅방 입장에 실패했습니다.';
+      this.logger.error(`Join room error: ${errorMessage}`);
       client.emit('error', {
         code: 'JOIN_FAILED',
-        message: error.message || '채팅방 입장에 실패했습니다.',
+        message: errorMessage,
       });
     }
   }
@@ -257,7 +286,7 @@ export class ChatGateway
       }
 
       // Socket.io room leave
-      client.leave(roomId);
+      await client.leave(roomId);
       data.currentRooms?.delete(roomId);
 
       // 온라인 사용자 목록 업데이트
@@ -265,7 +294,9 @@ export class ChatGateway
 
       this.logger.log(`${data.nickname} left room ${roomId}`);
     } catch (error) {
-      this.logger.error(`Leave room error: ${error.message}`);
+      const errorMessage =
+        error instanceof Error ? error.message : 'Unknown error';
+      this.logger.error(`Leave room error: ${errorMessage}`);
     }
   }
 
@@ -280,7 +311,11 @@ export class ChatGateway
       // Rate limit 체크 (게스트: 20/분, 인증: 60/분)
       const limit = data.isAuthenticated ? 60 : 20;
       const key = `msg:${data.userId || data.guestId}`;
-      const rateLimit = await this.chatRedisService.checkRateLimit(key, limit, 60);
+      const rateLimit = await this.chatRedisService.checkRateLimit(
+        key,
+        limit,
+        60,
+      );
 
       if (!rateLimit.allowed) {
         throw new WsException('메시지 전송 속도 제한을 초과했습니다.');
@@ -290,7 +325,9 @@ export class ChatGateway
       const message = await this.chatService.sendMessage(
         dto.roomId,
         dto.content,
-        data.isAuthenticated ? ({ id: data.userId } as any) : undefined,
+        data.isAuthenticated
+          ? ({ id: data.userId } as Partial<User> as User)
+          : undefined,
         data.guestId,
       );
 
@@ -319,10 +356,12 @@ export class ChatGateway
 
       this.logger.log(`Message sent in room ${dto.roomId} by ${data.nickname}`);
     } catch (error) {
-      this.logger.error(`Send message error: ${error.message}`);
+      const errorMessage =
+        error instanceof Error ? error.message : '메시지 전송에 실패했습니다.';
+      this.logger.error(`Send message error: ${errorMessage}`);
       client.emit('error', {
         code: 'SEND_FAILED',
-        message: error.message || '메시지 전송에 실패했습니다.',
+        message: errorMessage,
       });
     }
   }
@@ -337,16 +376,24 @@ export class ChatGateway
 
     try {
       if (dto.isTyping) {
-        await this.chatRedisService.setTyping(dto.roomId, participantId, data.nickname);
+        await this.chatRedisService.setTyping(
+          dto.roomId,
+          participantId,
+          data.nickname,
+        );
       } else {
         await this.chatRedisService.removeTyping(dto.roomId, participantId);
       }
 
       // 타이핑 중인 사용자 목록 브로드캐스트
-      const typingUsers = await this.chatRedisService.getTypingUsers(dto.roomId);
+      const typingUsers = await this.chatRedisService.getTypingUsers(
+        dto.roomId,
+      );
       client.to(dto.roomId).emit('typing_users', { users: typingUsers });
     } catch (error) {
-      this.logger.error(`Typing error: ${error.message}`);
+      const errorMessage =
+        error instanceof Error ? error.message : 'Unknown error';
+      this.logger.error(`Typing error: ${errorMessage}`);
     }
   }
 
@@ -359,14 +406,16 @@ export class ChatGateway
         participants: onlineParticipants,
       });
     } catch (error) {
-      this.logger.error(`Broadcast online users error: ${error.message}`);
+      const errorMessage =
+        error instanceof Error ? error.message : 'Unknown error';
+      this.logger.error(`Broadcast online users error: ${errorMessage}`);
     }
   }
 
   private extractToken(client: Socket): string | null {
-    const auth =
-      client.handshake.auth?.token ||
-      client.handshake.headers?.authorization;
+    const authToken = client.handshake.auth?.token as string | undefined;
+    const authHeader = client.handshake.headers?.authorization;
+    const auth: string | undefined = authToken || authHeader;
 
     if (auth?.startsWith('Bearer ')) {
       return auth.slice(7);

@@ -9,7 +9,10 @@ import {
 } from 'typeorm';
 import { User } from '../../users/entities/user.entity';
 import { ChatRoom } from './chat-room.entity';
-import { ParticipantType, MessageType } from '../interfaces/participant-type.enum';
+import {
+  ParticipantType,
+  MessageType,
+} from '../interfaces/participant-type.enum';
 
 @Entity('chat_messages')
 @Index(['roomId', 'createdAt'])

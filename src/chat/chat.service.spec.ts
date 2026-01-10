@@ -10,7 +10,11 @@ import { ChatRedisService } from './chat-redis.service';
 import { ChatRoom } from './entities/chat-room.entity';
 import { ChatMessage } from './entities/chat-message.entity';
 import { ChatParticipant } from './entities/chat-participant.entity';
-import { RoomType, ParticipantType, MessageType } from './interfaces/participant-type.enum';
+import {
+  RoomType,
+  ParticipantType,
+  MessageType,
+} from './interfaces/participant-type.enum';
 import { User } from '../users/entities/user.entity';
 
 describe('ChatService', () => {
@@ -107,8 +111,14 @@ describe('ChatService', () => {
       providers: [
         ChatService,
         { provide: getRepositoryToken(ChatRoom), useValue: mockRoomRepository },
-        { provide: getRepositoryToken(ChatMessage), useValue: mockMessageRepository },
-        { provide: getRepositoryToken(ChatParticipant), useValue: mockParticipantRepository },
+        {
+          provide: getRepositoryToken(ChatMessage),
+          useValue: mockMessageRepository,
+        },
+        {
+          provide: getRepositoryToken(ChatParticipant),
+          useValue: mockParticipantRepository,
+        },
         { provide: ChatRedisService, useValue: mockChatRedisService },
       ],
     }).compile();
@@ -135,7 +145,10 @@ describe('ChatService', () => {
       roomRepository.create.mockReturnValue(mockRoom);
       roomRepository.save.mockResolvedValue(mockRoom);
 
-      const result = await chatService.createRoom(createRoomDto, mockUser as User);
+      const result = await chatService.createRoom(
+        createRoomDto,
+        mockUser as User,
+      );
 
       expect(roomRepository.create).toHaveBeenCalledWith({
         name: createRoomDto.name,
@@ -162,7 +175,10 @@ describe('ChatService', () => {
       }));
       roomRepository.save.mockResolvedValue(mockPrivateRoom);
 
-      const result = await chatService.createRoom(createRoomDto, mockUser as User);
+      const result = await chatService.createRoom(
+        createRoomDto,
+        mockUser as User,
+      );
 
       expect(roomRepository.create).toHaveBeenCalledWith(
         expect.objectContaining({
@@ -187,7 +203,11 @@ describe('ChatService', () => {
       roomRepository.create.mockReturnValue(guestRoom);
       roomRepository.save.mockResolvedValue(guestRoom);
 
-      const result = await chatService.createRoom(createRoomDto, undefined, guestId);
+      const result = await chatService.createRoom(
+        createRoomDto,
+        undefined,
+        guestId,
+      );
 
       expect(roomRepository.create).toHaveBeenCalledWith(
         expect.objectContaining({
@@ -233,10 +253,7 @@ describe('ChatService', () => {
       participantRepository.count.mockResolvedValue(2);
       chatRedisService.getOnlineCount.mockResolvedValue(1);
 
-      const result = await chatService.findRoom(
-        'room-uuid-2',
-        mockUser.id,
-      );
+      const result = await chatService.findRoom('room-uuid-2', mockUser.id);
 
       expect(result.inviteCode).toBe('ABC12345');
     });
@@ -301,7 +318,13 @@ describe('ChatService', () => {
       roomRepository.findOne.mockResolvedValue(mockPrivateRoom);
 
       await expect(
-        chatService.joinRoom('room-uuid-2', 'TestUser', mockUser as User, undefined, 'WRONG123'),
+        chatService.joinRoom(
+          'room-uuid-2',
+          'TestUser',
+          mockUser as User,
+          undefined,
+          'WRONG123',
+        ),
       ).rejects.toThrow(ForbiddenException);
     });
 

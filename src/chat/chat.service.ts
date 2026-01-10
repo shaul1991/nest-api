@@ -54,7 +54,8 @@ export class ChatService {
       maxParticipants: dto.maxParticipants || 100,
       createdBy: user || null,
       createdByGuestId: user ? null : guestId,
-      inviteCode: dto.type === RoomType.PRIVATE ? this.generateInviteCode() : null,
+      inviteCode:
+        dto.type === RoomType.PRIVATE ? this.generateInviteCode() : null,
     });
 
     return this.roomRepository.save(room);
@@ -86,7 +87,9 @@ export class ChatService {
       (guestId && room.createdByGuestId === guestId);
 
     if (!isOwner) {
-      throw new ForbiddenException('채팅방 소유자만 초대 코드를 재생성할 수 있습니다.');
+      throw new ForbiddenException(
+        '채팅방 소유자만 초대 코드를 재생성할 수 있습니다.',
+      );
     }
 
     room.inviteCode = this.generateInviteCode();
@@ -229,9 +232,7 @@ export class ChatService {
 
     // 중복 참가 확인
     const existingParticipant = await this.participantRepository.findOne({
-      where: user
-        ? { roomId, userId: user.id }
-        : { roomId, guestId },
+      where: user ? { roomId, userId: user.id } : { roomId, guestId },
     });
 
     if (existingParticipant) {
@@ -260,9 +261,7 @@ export class ChatService {
     guestId?: string,
   ): Promise<void> {
     const participant = await this.participantRepository.findOne({
-      where: userId
-        ? { roomId, userId }
-        : { roomId, guestId },
+      where: userId ? { roomId, userId } : { roomId, guestId },
     });
 
     if (participant) {
@@ -291,9 +290,7 @@ export class ChatService {
   ): Promise<ChatMessage> {
     // 참가자 확인
     const participant = await this.participantRepository.findOne({
-      where: user
-        ? { roomId, userId: user.id }
-        : { roomId, guestId },
+      where: user ? { roomId, userId: user.id } : { roomId, guestId },
     });
 
     if (!participant) {
@@ -442,10 +439,7 @@ export class ChatService {
     await this.chatRedisService.setGuestSession(guestId, session);
 
     // 참가 중인 방들의 닉네임도 업데이트
-    await this.participantRepository.update(
-      { guestId },
-      { nickname },
-    );
+    await this.participantRepository.update({ guestId }, { nickname });
 
     return {
       guestId: session.guestId,
@@ -475,9 +469,7 @@ export class ChatService {
     guestId?: string,
   ): Promise<ChatParticipant | null> {
     return this.participantRepository.findOne({
-      where: userId
-        ? { roomId, userId }
-        : { roomId, guestId },
+      where: userId ? { roomId, userId } : { roomId, guestId },
       relations: ['user'],
     });
   }

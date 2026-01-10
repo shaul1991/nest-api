@@ -17,7 +17,10 @@ import { ChatParticipant } from '../../src/chat/entities/chat-participant.entity
 import { User } from '../../src/users/entities/user.entity';
 import { Role } from '../../src/users/entities/role.entity';
 import { Permission } from '../../src/users/entities/permission.entity';
-import { RoomType, ParticipantType } from '../../src/chat/interfaces/participant-type.enum';
+import {
+  RoomType,
+  ParticipantType,
+} from '../../src/chat/interfaces/participant-type.enum';
 import { RoleType } from '../../src/users/enums/role.enum';
 
 describe('Chat Controller (Integration)', () => {
@@ -98,7 +101,8 @@ describe('Chat Controller (Integration)', () => {
                   secret: process.env.JWT_SECRET || 'test-jwt-secret-key',
                 },
                 jwtRefresh: {
-                  secret: process.env.JWT_REFRESH_SECRET || 'test-refresh-secret-key',
+                  secret:
+                    process.env.JWT_REFRESH_SECRET || 'test-refresh-secret-key',
                 },
                 bcrypt: {
                   saltRounds: 10,
@@ -116,7 +120,14 @@ describe('Chat Controller (Integration)', () => {
             username: configService.get<string>('database.user'),
             password: configService.get<string>('database.password'),
             database: configService.get<string>('database.name'),
-            entities: [User, Role, Permission, ChatRoom, ChatMessage, ChatParticipant],
+            entities: [
+              User,
+              Role,
+              Permission,
+              ChatRoom,
+              ChatMessage,
+              ChatParticipant,
+            ],
             synchronize: true,
             dropSchema: true,
           }),
@@ -145,7 +156,9 @@ describe('Chat Controller (Integration)', () => {
 
     roomRepository = moduleFixture.get(getRepositoryToken(ChatRoom));
     messageRepository = moduleFixture.get(getRepositoryToken(ChatMessage));
-    participantRepository = moduleFixture.get(getRepositoryToken(ChatParticipant));
+    participantRepository = moduleFixture.get(
+      getRepositoryToken(ChatParticipant),
+    );
     userRepository = moduleFixture.get(getRepositoryToken(User));
     roleRepository = moduleFixture.get(getRepositoryToken(Role));
     jwtService = moduleFixture.get(JwtService);
@@ -259,7 +272,9 @@ describe('Chat Controller (Integration)', () => {
 
       expect(response.body.rooms.length).toBe(2);
       expect(response.body.total).toBe(2);
-      expect(response.body.rooms.every((room: any) => room.type === RoomType.PUBLIC)).toBe(true);
+      expect(
+        response.body.rooms.every((room: any) => room.type === RoomType.PUBLIC),
+      ).toBe(true);
     });
 
     it('페이지네이션이 동작해야 함', async () => {
@@ -356,7 +371,9 @@ describe('Chat Controller (Integration)', () => {
         .get('/chat/rooms')
         .expect(200);
 
-      expect(listResponse.body.rooms.find((r: any) => r.id === roomId)).toBeUndefined();
+      expect(
+        listResponse.body.rooms.find((r: any) => r.id === roomId),
+      ).toBeUndefined();
     });
 
     it('소유자가 아닌 경우 403 에러', async () => {

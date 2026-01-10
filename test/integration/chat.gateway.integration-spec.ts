@@ -73,7 +73,10 @@ describe('Chat Gateway (Integration)', () => {
     });
   };
 
-  const createClientSocket = (token?: string, guestId?: string): ClientSocket => {
+  const createClientSocket = (
+    token?: string,
+    guestId?: string,
+  ): ClientSocket => {
     const extraHeaders: Record<string, string> = {};
     if (token) {
       extraHeaders['authorization'] = `Bearer ${token}`;
@@ -89,7 +92,11 @@ describe('Chat Gateway (Integration)', () => {
     });
   };
 
-  const waitForEvent = <T>(socket: ClientSocket, event: string, timeout = 5000): Promise<T> => {
+  const waitForEvent = <T>(
+    socket: ClientSocket,
+    event: string,
+    timeout = 5000,
+  ): Promise<T> => {
     return new Promise((resolve, reject) => {
       const timer = setTimeout(() => {
         reject(new Error(`Timeout waiting for event: ${event}`));
@@ -126,7 +133,8 @@ describe('Chat Gateway (Integration)', () => {
                   secret: process.env.JWT_SECRET || 'test-jwt-secret-key',
                 },
                 jwtRefresh: {
-                  secret: process.env.JWT_REFRESH_SECRET || 'test-refresh-secret-key',
+                  secret:
+                    process.env.JWT_REFRESH_SECRET || 'test-refresh-secret-key',
                 },
                 bcrypt: {
                   saltRounds: 10,
@@ -144,7 +152,14 @@ describe('Chat Gateway (Integration)', () => {
             username: configService.get<string>('database.user'),
             password: configService.get<string>('database.password'),
             database: configService.get<string>('database.name'),
-            entities: [User, Role, Permission, ChatRoom, ChatMessage, ChatParticipant],
+            entities: [
+              User,
+              Role,
+              Permission,
+              ChatRoom,
+              ChatMessage,
+              ChatParticipant,
+            ],
             synchronize: true,
             dropSchema: true,
           }),
@@ -170,7 +185,9 @@ describe('Chat Gateway (Integration)', () => {
     roomRepository = moduleFixture.get(getRepositoryToken(ChatRoom));
     userRepository = moduleFixture.get(getRepositoryToken(User));
     roleRepository = moduleFixture.get(getRepositoryToken(Role));
-    participantRepository = moduleFixture.get(getRepositoryToken(ChatParticipant));
+    participantRepository = moduleFixture.get(
+      getRepositoryToken(ChatParticipant),
+    );
     jwtService = moduleFixture.get(JwtService);
     configService = moduleFixture.get(ConfigService);
   });
@@ -211,7 +228,10 @@ describe('Chat Gateway (Integration)', () => {
     it('게스트가 WebSocket에 연결할 수 있어야 함', async () => {
       const client = createClientSocket(undefined, 'test-guest-uuid');
 
-      const guestIdEvent = waitForEvent<{ guestId: string }>(client, 'set_guest_id');
+      const guestIdEvent = waitForEvent<{ guestId: string }>(
+        client,
+        'set_guest_id',
+      );
 
       await new Promise<void>((resolve, reject) => {
         client.on('connect', async () => {
@@ -583,11 +603,10 @@ describe('Chat Gateway (Integration)', () => {
   describe('Private Room', () => {
     let privateRoom: ChatRoom;
     let user: User;
-    let token: string;
 
     beforeEach(async () => {
       user = await createMockUser();
-      token = generateAccessToken(user);
+      // Token generated for potential future use
 
       privateRoom = roomRepository.create({
         name: 'Private Room',

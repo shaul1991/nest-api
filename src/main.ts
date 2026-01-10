@@ -13,9 +13,11 @@ async function bootstrap() {
   const configService = app.get(ConfigService);
 
   // Security middleware
-  app.use(helmet({
-    contentSecurityPolicy: false, // WebSocket 호환성을 위해
-  }));
+  app.use(
+    helmet({
+      contentSecurityPolicy: false, // WebSocket 호환성을 위해
+    }),
+  );
 
   // Cookie parser
   app.use(cookieParser());
@@ -44,7 +46,9 @@ async function bootstrap() {
       app.useWebSocketAdapter(redisIoAdapter);
       logger.log('Redis WebSocket adapter connected');
     } catch (error) {
-      logger.warn(`Redis adapter failed, using default: ${error.message}`);
+      const errorMessage =
+        error instanceof Error ? error.message : 'Unknown error';
+      logger.warn(`Redis adapter failed, using default: ${errorMessage}`);
     }
   }
 

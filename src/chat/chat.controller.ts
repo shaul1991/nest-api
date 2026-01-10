@@ -23,7 +23,10 @@ import {
 import type { Request, Response } from 'express';
 import { ChatService } from './chat.service';
 import { CreateRoomDto } from './dto/create-room.dto';
-import { UpdateGuestNicknameDto, JoinWithInviteCodeDto } from './dto/update-guest.dto';
+import {
+  UpdateGuestNicknameDto,
+  JoinWithInviteCodeDto,
+} from './dto/update-guest.dto';
 import {
   RoomResponseDto,
   MessageResponseDto,
@@ -42,14 +45,22 @@ export class ChatController {
   @Post('rooms')
   @Public()
   @ApiOperation({ summary: '채팅방 생성' })
-  @ApiResponse({ status: 201, description: '채팅방 생성 성공', type: RoomResponseDto })
+  @ApiResponse({
+    status: 201,
+    description: '채팅방 생성 성공',
+    type: RoomResponseDto,
+  })
   async createRoom(
     @Body() dto: CreateRoomDto,
     @CurrentUser() user: User | null,
     @Req() req: Request,
   ): Promise<RoomResponseDto> {
     const guestId = this.extractGuestId(req);
-    const room = await this.chatService.createRoom(dto, user || undefined, guestId);
+    const room = await this.chatService.createRoom(
+      dto,
+      user || undefined,
+      guestId,
+    );
 
     return {
       id: room.id,
@@ -73,7 +84,12 @@ export class ChatController {
   async getRooms(
     @Query('page') page: number = 1,
     @Query('limit') limit: number = 20,
-  ): Promise<{ rooms: RoomResponseDto[]; total: number; page: number; limit: number }> {
+  ): Promise<{
+    rooms: RoomResponseDto[];
+    total: number;
+    page: number;
+    limit: number;
+  }> {
     const result = await this.chatService.findRooms(page, limit);
     return {
       ...result,
@@ -86,7 +102,11 @@ export class ChatController {
   @Public()
   @ApiOperation({ summary: '채팅방 상세 조회' })
   @ApiParam({ name: 'id', description: '채팅방 ID' })
-  @ApiResponse({ status: 200, description: '채팅방 상세 정보', type: RoomResponseDto })
+  @ApiResponse({
+    status: 200,
+    description: '채팅방 상세 정보',
+    type: RoomResponseDto,
+  })
   async getRoom(
     @Param('id', ParseUUIDPipe) id: string,
     @CurrentUser() user: User | null,
@@ -131,7 +151,10 @@ export class ChatController {
 
     await this.chatService.joinRoom(
       id,
-      user?.displayName || user?.email?.split('@')[0] || guestSession?.nickname || 'Guest',
+      user?.displayName ||
+        user?.email?.split('@')[0] ||
+        guestSession?.nickname ||
+        'Guest',
       user || undefined,
       guestId,
       dto.inviteCode,
@@ -173,7 +196,12 @@ export class ChatController {
     @Query('limit') limit: number = 50,
     @CurrentUser() user: User | null,
     @Req() req: Request,
-  ): Promise<{ messages: MessageResponseDto[]; total: number; page: number; limit: number }> {
+  ): Promise<{
+    messages: MessageResponseDto[];
+    total: number;
+    page: number;
+    limit: number;
+  }> {
     const guestId = this.extractGuestId(req);
     const result = await this.chatService.getMessages(
       id,
@@ -193,7 +221,11 @@ export class ChatController {
   @Public()
   @ApiOperation({ summary: '참가자 목록 조회' })
   @ApiParam({ name: 'id', description: '채팅방 ID' })
-  @ApiResponse({ status: 200, description: '참가자 목록', type: [ParticipantResponseDto] })
+  @ApiResponse({
+    status: 200,
+    description: '참가자 목록',
+    type: [ParticipantResponseDto],
+  })
   async getParticipants(
     @Param('id', ParseUUIDPipe) id: string,
   ): Promise<ParticipantResponseDto[]> {
@@ -203,7 +235,11 @@ export class ChatController {
   @Post('guest/nickname')
   @Public()
   @ApiOperation({ summary: '게스트 닉네임 설정' })
-  @ApiResponse({ status: 200, description: '닉네임 변경 성공', type: GuestResponseDto })
+  @ApiResponse({
+    status: 200,
+    description: '닉네임 변경 성공',
+    type: GuestResponseDto,
+  })
   @HttpCode(HttpStatus.OK)
   async setGuestNickname(
     @Body() dto: UpdateGuestNicknameDto,
@@ -232,12 +268,16 @@ export class ChatController {
   @Get('guest/me')
   @Public()
   @ApiOperation({ summary: '게스트 정보 조회' })
-  @ApiResponse({ status: 200, description: '게스트 정보', type: GuestResponseDto })
+  @ApiResponse({
+    status: 200,
+    description: '게스트 정보',
+    type: GuestResponseDto,
+  })
   async getGuestInfo(
     @Req() req: Request,
     @Res({ passthrough: true }) res: Response,
   ): Promise<GuestResponseDto> {
-    let guestId = this.extractGuestId(req);
+    const guestId = this.extractGuestId(req);
 
     // 게스트 ID가 없으면 새로 생성
     if (!guestId) {
@@ -272,6 +312,8 @@ export class ChatController {
   }
 
   private extractGuestId(req: Request): string | undefined {
-    return req.cookies?.guest_id || req.headers['x-guest-id'] as string | undefined;
+    const cookieGuestId = req.cookies?.guest_id as string | undefined;
+    const headerGuestId = req.headers['x-guest-id'] as string | undefined;
+    return cookieGuestId || headerGuestId;
   }
 }

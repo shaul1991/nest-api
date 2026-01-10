@@ -1,6 +1,10 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { ConfigService } from '@nestjs/config';
-import { ChatRedisService, GuestSession, SocketData } from './chat-redis.service';
+import {
+  ChatRedisService,
+  GuestSession,
+  SocketData,
+} from './chat-redis.service';
 
 // Mock ioredis
 jest.mock('ioredis', () => {
@@ -50,7 +54,7 @@ describe('ChatRedisService', () => {
     mockRedis = (service as any).redis;
   });
 
-  afterEach(async () => {
+  afterEach(() => {
     jest.clearAllMocks();
   });
 
@@ -126,7 +130,9 @@ describe('ChatRedisService', () => {
 
       const result = await service.getOnlineUsers('room-uuid-1');
 
-      expect(mockRedis.smembers).toHaveBeenCalledWith('chat:room:room-uuid-1:online');
+      expect(mockRedis.smembers).toHaveBeenCalledWith(
+        'chat:room:room-uuid-1:online',
+      );
       expect(result).toEqual(onlineUsers);
     });
 
@@ -135,7 +141,9 @@ describe('ChatRedisService', () => {
 
       const result = await service.getOnlineCount('room-uuid-1');
 
-      expect(mockRedis.scard).toHaveBeenCalledWith('chat:room:room-uuid-1:online');
+      expect(mockRedis.scard).toHaveBeenCalledWith(
+        'chat:room:room-uuid-1:online',
+      );
       expect(result).toBe(5);
     });
   });
@@ -165,11 +173,15 @@ describe('ChatRedisService', () => {
         'chat:room:room-uuid-1:typing:participant-2',
       ];
       mockRedis.keys.mockResolvedValue(typingKeys);
-      mockRedis.get.mockResolvedValueOnce('User1').mockResolvedValueOnce('User2');
+      mockRedis.get
+        .mockResolvedValueOnce('User1')
+        .mockResolvedValueOnce('User2');
 
       const result = await service.getTypingUsers('room-uuid-1');
 
-      expect(mockRedis.keys).toHaveBeenCalledWith('chat:room:room-uuid-1:typing:*');
+      expect(mockRedis.keys).toHaveBeenCalledWith(
+        'chat:room:room-uuid-1:typing:*',
+      );
       expect(result).toEqual(['User1', 'User2']);
     });
 
@@ -233,14 +245,18 @@ describe('ChatRedisService', () => {
 
       const result = await service.getUserSocket('user-uuid-1');
 
-      expect(mockRedis.get).toHaveBeenCalledWith('chat:user:user-uuid-1:socket');
+      expect(mockRedis.get).toHaveBeenCalledWith(
+        'chat:user:user-uuid-1:socket',
+      );
       expect(result).toBe('socket-id-1');
     });
 
     it('사용자 소켓 ID를 삭제해야 함', async () => {
       await service.deleteUserSocket('user-uuid-1');
 
-      expect(mockRedis.del).toHaveBeenCalledWith('chat:user:user-uuid-1:socket');
+      expect(mockRedis.del).toHaveBeenCalledWith(
+        'chat:user:user-uuid-1:socket',
+      );
     });
   });
 
@@ -260,14 +276,18 @@ describe('ChatRedisService', () => {
 
       const result = await service.getGuestSocket('guest-uuid-1');
 
-      expect(mockRedis.get).toHaveBeenCalledWith('chat:guest:guest-uuid-1:socket');
+      expect(mockRedis.get).toHaveBeenCalledWith(
+        'chat:guest:guest-uuid-1:socket',
+      );
       expect(result).toBe('socket-id-1');
     });
 
     it('게스트 소켓 ID를 삭제해야 함', async () => {
       await service.deleteGuestSocket('guest-uuid-1');
 
-      expect(mockRedis.del).toHaveBeenCalledWith('chat:guest:guest-uuid-1:socket');
+      expect(mockRedis.del).toHaveBeenCalledWith(
+        'chat:guest:guest-uuid-1:socket',
+      );
     });
   });
 

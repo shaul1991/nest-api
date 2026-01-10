@@ -1,5 +1,8 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { MessageType, ParticipantType } from '../interfaces/participant-type.enum';
+import {
+  MessageType,
+  ParticipantType,
+} from '../interfaces/participant-type.enum';
 
 export class SenderDto {
   @ApiProperty({ description: '발신자 ID (userId 또는 guestId)' })

@@ -54,7 +54,7 @@ export class ChatRedisService implements OnModuleDestroy {
 
   async getGuestSession(guestId: string): Promise<GuestSession | null> {
     const data = await this.redis.get(`chat:guest:${guestId}`);
-    return data ? JSON.parse(data) : null;
+    return data ? (JSON.parse(data) as GuestSession) : null;
   }
 
   async updateGuestNickname(guestId: string, nickname: string): Promise<void> {
@@ -83,7 +83,11 @@ export class ChatRedisService implements OnModuleDestroy {
   }
 
   // 타이핑 상태 (3초 TTL)
-  async setTyping(roomId: string, participantId: string, nickname: string): Promise<void> {
+  async setTyping(
+    roomId: string,
+    participantId: string,
+    nickname: string,
+  ): Promise<void> {
     await this.redis.setex(
       `chat:room:${roomId}:typing:${participantId}`,
       3,
@@ -118,7 +122,7 @@ export class ChatRedisService implements OnModuleDestroy {
 
   async getSocketConnection(socketId: string): Promise<SocketData | null> {
     const data = await this.redis.get(`chat:socket:${socketId}`);
-    return data ? JSON.parse(data) : null;
+    return data ? (JSON.parse(data) as SocketData) : null;
   }
 
   async deleteSocketConnection(socketId: string): Promise<void> {
@@ -127,7 +131,11 @@ export class ChatRedisService implements OnModuleDestroy {
 
   // 사용자의 소켓 ID 매핑
   async setUserSocket(userId: string, socketId: string): Promise<void> {
-    await this.redis.setex(`chat:user:${userId}:socket`, 24 * 60 * 60, socketId);
+    await this.redis.setex(
+      `chat:user:${userId}:socket`,
+      24 * 60 * 60,
+      socketId,
+    );
   }
 
   async getUserSocket(userId: string): Promise<string | null> {
@@ -140,7 +148,11 @@ export class ChatRedisService implements OnModuleDestroy {
 
   // 게스트의 소켓 ID 매핑
   async setGuestSocket(guestId: string, socketId: string): Promise<void> {
-    await this.redis.setex(`chat:guest:${guestId}:socket`, 24 * 60 * 60, socketId);
+    await this.redis.setex(
+      `chat:guest:${guestId}:socket`,
+      24 * 60 * 60,
+      socketId,
+    );
   }
 
   async getGuestSocket(guestId: string): Promise<string | null> {
