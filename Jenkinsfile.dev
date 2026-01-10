@@ -5,17 +5,12 @@ pipeline {
         DOCKER_IMAGE = 'nest-api'
         ENV = 'dev'
         COMPOSE_FILE = 'docker-compose.blue-green.yml'
-        INFRA_COMPOSE_FILE = 'docker-compose.infra.yml'
         SLACK_WEBHOOK_URL = credentials('slack-webhook-url')
         
         // Blue-Green 포트 설정
         BLUE_PORT = '3101'
         GREEN_PORT = '3103'
         DOMAIN = 'dev-api-nest.shaul.link'
-        
-        // 인프라 프로젝트 이름 (공유)
-        INFRA_PROJECT = 'nest-api-infra-dev'
-        NETWORK_NAME = 'nest-api-dev-network'
     }
 
     stages {
@@ -38,44 +33,6 @@ pipeline {
                     configFile(fileId: 'nest-api-env-dev', targetLocation: '.env.dev')
                 ]) {
                     echo "Config file injected: .env.dev"
-                }
-            }
-        }
-
-        stage('Ensure Infrastructure') {
-            steps {
-                configFileProvider([
-                    configFile(fileId: 'nest-api-env-dev', targetLocation: '.env.dev')
-                ]) {
-                    script {
-                        // 공유 네트워크 생성 (없으면)
-                        sh """
-                            docker network create ${NETWORK_NAME} 2>/dev/null || true
-                        """
-                        
-                        // 인프라 서비스 시작 (Postgres, Redis)
-                        sh """
-                            export ENV=${ENV}
-                            docker compose -p ${INFRA_PROJECT} -f ${INFRA_COMPOSE_FILE} \
-                                --env-file .env.dev up -d
-                        """
-                        
-                        // 인프라 헬스체크 대기
-                        sh """
-                            echo "Waiting for infrastructure to be healthy..."
-                            for i in 1 2 3 4 5 6 7 8 9 10 11 12; do
-                                PG_HEALTHY=\$(docker inspect --format='{{.State.Health.Status}}' nest-api-postgres-${ENV} 2>/dev/null || echo "")
-                                REDIS_HEALTHY=\$(docker inspect --format='{{.State.Health.Status}}' nest-api-redis-${ENV} 2>/dev/null || echo "")
-                                
-                                if [ "\$PG_HEALTHY" = "healthy" ] && [ "\$REDIS_HEALTHY" = "healthy" ]; then
-                                    echo "Infrastructure is healthy!"
-                                    break
-                                fi
-                                echo "Waiting... Postgres: \$PG_HEALTHY, Redis: \$REDIS_HEALTHY"
-                                sleep 5
-                            done
-                        """
-                    }
                 }
             }
         }
@@ -106,10 +63,6 @@ pipeline {
                     env.TARGET_SLOT = (activeSlot == 'blue') ? 'green' : 'blue'
                     env.TARGET_PORT = (env.TARGET_SLOT == 'blue') ? BLUE_PORT : GREEN_PORT
                     
-                    // 슬롯별 프로젝트 이름
-                    env.TARGET_PROJECT = "nest-api-${ENV}-${env.TARGET_SLOT}"
-                    env.ACTIVE_PROJECT = "nest-api-${ENV}-${env.ACTIVE_SLOT}"
-                    
                     echo "Active: ${env.ACTIVE_SLOT}, Target: ${env.TARGET_SLOT}, Port: ${env.TARGET_PORT}"
                 }
             }
@@ -123,10 +76,9 @@ pipeline {
                     script {
                         def containerName = "nest-api-${TARGET_SLOT}-${ENV}"
                         
-                        // 1. 기존 앱 컨테이너 정리 (인프라는 유지)
+                        // 1. 기존 앱 컨테이너 정리
                         sh """
-                            docker compose -p ${TARGET_PROJECT} -f ${COMPOSE_FILE} \
-                                --profile ${TARGET_SLOT} down --remove-orphans 2>/dev/null || true
+                            docker compose -f ${COMPOSE_FILE} --profile ${TARGET_SLOT} down --remove-orphans 2>/dev/null || true
                         """
                         
                         // 2. 잔류 컨테이너 강제 제거
@@ -153,7 +105,7 @@ pipeline {
                             export BLUE_PORT=${BLUE_PORT}
                             export GREEN_PORT=${GREEN_PORT}
                             
-                            docker compose -p ${TARGET_PROJECT} -f ${COMPOSE_FILE} \
+                            docker compose -f ${COMPOSE_FILE} \
                                 --env-file .env.dev \
                                 --profile ${TARGET_SLOT} up -d --force-recreate
                         """
@@ -184,8 +136,7 @@ pipeline {
                     
                     if (!healthy) {
                         sh """
-                            docker compose -p ${TARGET_PROJECT} -f ${COMPOSE_FILE} \
-                                --profile ${TARGET_SLOT} down
+                            docker compose -f ${COMPOSE_FILE} --profile ${TARGET_SLOT} down
                         """
                         error("Health check failed after ${maxAttempts} attempts")
                     }
@@ -221,8 +172,7 @@ pipeline {
             steps {
                 script {
                     sh """
-                        docker compose -p ${ACTIVE_PROJECT} -f ${COMPOSE_FILE} \
-                            --profile ${ACTIVE_SLOT} down --remove-orphans 2>/dev/null || true
+                        docker compose -f ${COMPOSE_FILE} --profile ${ACTIVE_SLOT} down --remove-orphans 2>/dev/null || true
                     """
                 }
             }
