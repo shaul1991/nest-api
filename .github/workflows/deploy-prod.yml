@@ -61,7 +61,7 @@ jobs:
             echo "Triggering Jenkins job nest-api-prod via localhost..."
 
             # Jenkins localhost URL (bypasses Cloudflare)
-            JENKINS_LOCAL="http://localhost:8080"
+            JENKINS_LOCAL="http://localhost:8888"
 
             # Try without CSRF first
             HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" -X POST \
