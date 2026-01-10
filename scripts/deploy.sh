@@ -91,16 +91,9 @@ reload_caddy() {
         return 0
     fi
 
-    # Method 2: Execute systemctl on host via privileged container (works from Jenkins container)
-    if docker run --rm --privileged --pid=host alpine:latest \
-        nsenter -t 1 -m -u -n -i -- systemctl reload caddy 2>/dev/null; then
-        echo -e "${GREEN}Caddy reloaded via host nsenter${NC}"
-        return 0
-    fi
-
-    # Method 3: Try caddy reload command
-    if command -v caddy &> /dev/null && caddy reload --config "${CADDY_CONFIG}" 2>/dev/null; then
-        echo -e "${GREEN}Caddy reloaded via caddy command${NC}"
+    # Method 2: SSH to host (works from Jenkins container)
+    if ssh -o StrictHostKeyChecking=no -o BatchMode=yes root@host.docker.internal "systemctl reload caddy" 2>/dev/null; then
+        echo -e "${GREEN}Caddy reloaded via SSH${NC}"
         return 0
     fi
 
