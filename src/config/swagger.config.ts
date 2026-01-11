@@ -21,6 +21,7 @@ export function setupSwagger(app: INestApplication): void {
     )
     .addTag('Auth', '인증 관련 API')
     .addTag('Users', '사용자 관련 API')
+    .addTag('Files', '파일 업로드/다운로드 API')
     .addTag('Chat', '실시간 채팅 API')
     .addTag('Health', '헬스체크 API')
     .build();
