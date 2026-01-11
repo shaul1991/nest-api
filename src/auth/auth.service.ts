@@ -9,6 +9,7 @@ import { ConfigService } from '@nestjs/config';
 import { CACHE_MANAGER } from '@nestjs/cache-manager';
 import type { Cache } from 'cache-manager';
 import * as bcrypt from 'bcrypt';
+import * as crypto from 'crypto';
 import { UsersService } from '../users/users.service';
 import { User } from '../users/entities/user.entity';
 import { CreateUserDto } from '../users/dto/create-user.dto';
@@ -61,9 +62,11 @@ export class AuthService {
     userId: string,
     refreshToken: string,
   ): Promise<TokenResponse> {
-    const storedToken = await this.getStoredRefreshToken(userId);
+    const storedTokenHash = await this.getStoredRefreshToken(userId);
+    const providedTokenHash = this.hashRefreshToken(refreshToken);
 
-    if (!storedToken || storedToken !== refreshToken) {
+    // 해시값 비교로 토큰 검증
+    if (!storedTokenHash || storedTokenHash !== providedTokenHash) {
       throw new UnauthorizedException(AUTH_ERRORS.REFRESH_TOKEN_INVALID);
     }
 
@@ -154,7 +157,14 @@ export class AuthService {
     refreshToken: string,
   ): Promise<void> {
     const ttl = 7 * 24 * 60 * 60 * 1000; // 7 days in milliseconds
-    await this.cacheManager.set(`refresh_token:${userId}`, refreshToken, ttl);
+    // 보안: 평문 대신 해시값 저장 (Redis 유출 시 토큰 보호)
+    const tokenHash = this.hashRefreshToken(refreshToken);
+    await this.cacheManager.set(`refresh_token:${userId}`, tokenHash, ttl);
+  }
+
+  // Refresh Token SHA256 해시 생성
+  private hashRefreshToken(token: string): string {
+    return crypto.createHash('sha256').update(token).digest('hex');
   }
 
   private async getStoredRefreshToken(userId: string): Promise<string | null> {
