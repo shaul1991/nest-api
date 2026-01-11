@@ -4,6 +4,7 @@ import {
   IsNumber,
   IsString,
   IsOptional,
+  IsBoolean,
   Min,
   Max,
   MinLength,
@@ -75,6 +76,31 @@ export class EnvironmentVariables {
   @Max(14)
   @IsOptional()
   BCRYPT_SALT_ROUNDS: number = 12;
+
+  // MinIO Storage
+  @IsString()
+  @IsOptional()
+  MINIO_ENDPOINT: string = 'localhost';
+
+  @IsNumber()
+  @IsOptional()
+  MINIO_PORT: number = 9000;
+
+  @IsBoolean()
+  @IsOptional()
+  MINIO_USE_SSL: boolean = false;
+
+  @IsString()
+  @IsOptional()
+  MINIO_ACCESS_KEY: string = 'minioadmin';
+
+  @IsString()
+  @IsOptional()
+  MINIO_SECRET_KEY: string = 'minioadmin';
+
+  @IsString()
+  @IsOptional()
+  MINIO_BUCKET: string = 'uploads';
 }
 
 export function validate(config: Record<string, unknown>) {
