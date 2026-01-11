@@ -98,7 +98,7 @@ export class ChatService {
     return room.inviteCode;
   }
 
-  // 채팅방 목록 조회
+  // 채팅방 목록 조회 (N+1 쿼리 최적화)
   async findRooms(
     page: number = 1,
     limit: number = 20,
@@ -110,25 +110,41 @@ export class ChatService {
       take: limit,
     });
 
-    const roomDtos: RoomResponseDto[] = await Promise.all(
-      rooms.map(async (room) => {
-        const participantCount = await this.participantRepository.count({
-          where: { roomId: room.id },
-        });
-        const onlineCount = await this.chatRedisService.getOnlineCount(room.id);
+    if (rooms.length === 0) {
+      return { rooms: [], total };
+    }
 
-        return {
-          id: room.id,
-          name: room.name,
-          description: room.description,
-          type: room.type,
-          maxParticipants: room.maxParticipants,
-          participantCount,
-          onlineCount,
-          createdAt: room.createdAt,
-        };
-      }),
+    const roomIds = rooms.map((room) => room.id);
+
+    // N+1 해결: 단일 집계 쿼리로 참가자 수 조회
+    const participantCounts = await this.participantRepository
+      .createQueryBuilder('participant')
+      .select('participant.roomId', 'roomId')
+      .addSelect('COUNT(*)', 'count')
+      .where('participant.roomId IN (:...roomIds)', { roomIds })
+      .groupBy('participant.roomId')
+      .getRawMany<{ roomId: string; count: string }>();
+
+    const participantCountMap = new Map<string, number>(
+      participantCounts.map((p) => [p.roomId, parseInt(p.count, 10)]),
     );
+
+    // Redis 파이프라인으로 온라인 사용자 수 일괄 조회
+    const onlineCounts = await this.chatRedisService.getOnlineCountBatch(roomIds);
+    const onlineCountMap = new Map<string, number>(
+      roomIds.map((id, index) => [id, onlineCounts[index]]),
+    );
+
+    const roomDtos: RoomResponseDto[] = rooms.map((room) => ({
+      id: room.id,
+      name: room.name,
+      description: room.description,
+      type: room.type,
+      maxParticipants: room.maxParticipants,
+      participantCount: participantCountMap.get(room.id) || 0,
+      onlineCount: onlineCountMap.get(room.id) || 0,
+      createdAt: room.createdAt,
+    }));
 
     return { rooms: roomDtos, total };
   }

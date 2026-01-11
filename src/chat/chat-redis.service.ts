@@ -84,6 +84,24 @@ export class ChatRedisService implements OnModuleDestroy {
     return this.redis.scard(`chat:room:${roomId}:online`);
   }
 
+  // N+1 최적화: Redis 파이프라인으로 여러 방의 온라인 수 일괄 조회
+  async getOnlineCountBatch(roomIds: string[]): Promise<number[]> {
+    if (roomIds.length === 0) return [];
+
+    const pipeline = this.redis.pipeline();
+    for (const roomId of roomIds) {
+      pipeline.scard(`chat:room:${roomId}:online`);
+    }
+
+    const results = await pipeline.exec();
+    return (results || []).map((result) => {
+      if (result && result[1] !== null && result[1] !== undefined) {
+        return Number(result[1]);
+      }
+      return 0;
+    });
+  }
+
   // 타이핑 상태 (3초 TTL)
   async setTyping(
     roomId: string,
