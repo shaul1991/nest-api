@@ -30,25 +30,25 @@ export class File {
   @PrimaryGeneratedColumn('uuid')
   id: string;
 
-  @Column({ name: 'original_name', length: 255 })
+  @Column({ name: 'original_name', type: 'varchar', length: 255 })
   originalName: string;
 
-  @Column({ name: 'storage_path', length: 500 })
+  @Column({ name: 'storage_path', type: 'varchar', length: 500 })
   storagePath: string;
 
-  @Column({ name: 'mime_type', length: 100 })
+  @Column({ name: 'mime_type', type: 'varchar', length: 100 })
   mimeType: string;
 
   @Column({ type: 'bigint' })
   size: number;
 
-  @Column({ name: 'thumbnail_path', length: 500, nullable: true })
+  @Column({ name: 'thumbnail_path', type: 'varchar', length: 500, nullable: true })
   thumbnailPath: string | null;
 
-  @Column({ name: 'thumbnail_path_small', length: 500, nullable: true })
+  @Column({ name: 'thumbnail_path_small', type: 'varchar', length: 500, nullable: true })
   thumbnailPathSmall: string | null;
 
-  @Column({ length: 100, default: 'uploads' })
+  @Column({ type: 'varchar', length: 100, default: 'uploads' })
   bucket: string;
 
   @Column({
@@ -71,7 +71,7 @@ export class File {
   @Column({ type: 'jsonb', nullable: true })
   metadata: Record<string, unknown>;
 
-  @Column({ name: 'checksum', length: 64, nullable: true })
+  @Column({ name: 'checksum', type: 'varchar', length: 64, nullable: true })
   checksum: string | null;
 
   @Index()
