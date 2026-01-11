@@ -167,8 +167,9 @@ export class ChatGateway
     const data = client.data as SocketData;
 
     try {
-      // Rate limit 체크
-      const key = `join:${data.userId || data.guestId}`;
+      // Rate limit 체크 (IP 포함으로 토큰 탈취 시 우회 방지)
+      const clientIp = this.extractClientIp(client);
+      const key = `join:${clientIp}:${data.userId || data.guestId}`;
       const rateLimit = await this.chatRedisService.checkRateLimit(key, 10, 60);
       if (!rateLimit.allowed) {
         throw new WsException(
@@ -316,9 +317,10 @@ export class ChatGateway
     const data = client.data as SocketData;
 
     try {
-      // Rate limit 체크 (게스트: 20/분, 인증: 60/분)
+      // Rate limit 체크 (IP 포함, 게스트: 20/분, 인증: 60/분)
+      const clientIp = this.extractClientIp(client);
       const limit = data.isAuthenticated ? 60 : 20;
-      const key = `msg:${data.userId || data.guestId}`;
+      const key = `msg:${clientIp}:${data.userId || data.guestId}`;
       const rateLimit = await this.chatRedisService.checkRateLimit(
         key,
         limit,
@@ -437,5 +439,28 @@ export class ChatGateway
 
     const match = cookies.match(/guest_id=([^;]+)/);
     return match ? match[1] : null;
+  }
+
+  // 클라이언트 IP 추출 (프록시 환경 고려)
+  private extractClientIp(client: Socket): string {
+    const headers = client.handshake.headers;
+
+    // X-Forwarded-For 헤더 (프록시/로드밸런서 환경)
+    const forwardedFor = headers['x-forwarded-for'];
+    if (forwardedFor) {
+      const ips = Array.isArray(forwardedFor)
+        ? forwardedFor[0]
+        : forwardedFor.split(',')[0];
+      return ips.trim();
+    }
+
+    // X-Real-IP 헤더 (Nginx 등)
+    const realIp = headers['x-real-ip'];
+    if (realIp) {
+      return Array.isArray(realIp) ? realIp[0] : realIp;
+    }
+
+    // 직접 연결 IP
+    return client.handshake.address || 'unknown';
   }
 }
