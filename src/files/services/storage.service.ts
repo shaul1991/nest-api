@@ -12,13 +12,15 @@ export class StorageService implements OnModuleInit {
 
   constructor(private readonly configService: ConfigService) {
     this.client = new Minio.Client({
-      endPoint: this.configService.get<string>('storage.endpoint'),
-      port: this.configService.get<number>('storage.port'),
-      useSSL: this.configService.get<boolean>('storage.useSSL'),
-      accessKey: this.configService.get<string>('storage.accessKey'),
-      secretKey: this.configService.get<string>('storage.secretKey'),
+      endPoint:
+        this.configService.get<string>('storage.endpoint') || 'localhost',
+      port: this.configService.get<number>('storage.port') || 9000,
+      useSSL: this.configService.get<boolean>('storage.useSSL') ?? false,
+      accessKey: this.configService.get<string>('storage.accessKey') || '',
+      secretKey: this.configService.get<string>('storage.secretKey') || '',
     });
-    this.defaultBucket = this.configService.get<string>('storage.bucket');
+    this.defaultBucket =
+      this.configService.get<string>('storage.bucket') || 'uploads';
   }
 
   async onModuleInit(): Promise<void> {
@@ -63,7 +65,7 @@ export class StorageService implements OnModuleInit {
     return {
       path,
       etag: result.etag,
-      versionId: result.versionId,
+      versionId: result.versionId ?? undefined,
     };
   }
 
@@ -91,7 +93,7 @@ export class StorageService implements OnModuleInit {
     return {
       path,
       etag: result.etag,
-      versionId: result.versionId,
+      versionId: result.versionId ?? undefined,
     };
   }
 

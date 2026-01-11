@@ -41,7 +41,7 @@ import {
   FILE_SIZE_LIMITS,
   MAX_FILES_PER_UPLOAD,
 } from './constants/file.constants';
-import { UploadedFile as UploadedFileType } from './interfaces/file-metadata.interface';
+import type { UploadedFile as UploadedFileType } from './interfaces/file-metadata.interface';
 
 @ApiTags('Files')
 @ApiBearerAuth('access-token')

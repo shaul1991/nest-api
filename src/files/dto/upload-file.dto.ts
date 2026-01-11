@@ -6,7 +6,7 @@ export class UploadFileDto {
     format: 'binary',
     description: '업로드할 파일',
   })
-  file: Express.Multer.File;
+  file: any;
 }
 
 export class UploadMultipleFilesDto {
@@ -15,5 +15,5 @@ export class UploadMultipleFilesDto {
     items: { type: 'string', format: 'binary' },
     description: '업로드할 파일들 (최대 10개)',
   })
-  files: Express.Multer.File[];
+  files: any[];
 }

@@ -49,6 +49,7 @@ export class FileResponseDto {
   @ApiPropertyOptional({
     description: '파일 메타데이터',
     type: 'object',
+    additionalProperties: true,
   })
   metadata?: Record<string, unknown>;
 
