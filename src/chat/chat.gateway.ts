@@ -35,7 +35,7 @@ interface JwtPayload {
 @WebSocketGateway({
   namespace: '/chat',
   cors: {
-    origin: '*',
+    origin: process.env.ALLOWED_WS_ORIGINS?.split(',') || [],
     credentials: true,
   },
 })
@@ -204,6 +204,10 @@ export class ChatGateway
 
       // Socket.io room join
       await client.join(dto.roomId);
+      // currentRooms가 Set이 아닐 수 있으므로 초기화 확인
+      if (!data.currentRooms || !(data.currentRooms instanceof Set)) {
+        data.currentRooms = new Set<string>();
+      }
       data.currentRooms.add(dto.roomId);
 
       // Redis 온라인 상태 업데이트
