@@ -9,12 +9,13 @@ import {
   FILE_SIZE_LIMITS,
   FILE_SIGNATURES,
   FILE_ERRORS,
+  MAX_FILES_PER_UPLOAD,
 } from '../constants/file.constants';
 
 @Injectable()
 export class FileValidationPipe implements PipeTransform {
   constructor(
-    private readonly maxSize: number = FILE_SIZE_LIMITS.DEFAULT,
+    private readonly maxSize: number = FILE_SIZE_LIMITS.SINGLE_FILE,
   ) {}
 
   async transform(file: Express.Multer.File): Promise<Express.Multer.File> {
@@ -78,8 +79,9 @@ export class FileValidationPipe implements PipeTransform {
 @Injectable()
 export class FilesValidationPipe implements PipeTransform {
   constructor(
-    private readonly maxSize: number = FILE_SIZE_LIMITS.DEFAULT,
-    private readonly maxFiles: number = 10,
+    private readonly maxSizePerFile: number = FILE_SIZE_LIMITS.SINGLE_FILE,
+    private readonly maxTotalSize: number = FILE_SIZE_LIMITS.TOTAL_UPLOAD,
+    private readonly maxFiles: number = MAX_FILES_PER_UPLOAD,
   ) {}
 
   async transform(files: Express.Multer.File[]): Promise<Express.Multer.File[]> {
@@ -87,13 +89,19 @@ export class FilesValidationPipe implements PipeTransform {
       throw new BadRequestException('At least one file is required');
     }
 
+    // Check max files count
     if (files.length > this.maxFiles) {
-      throw new BadRequestException(
-        `Maximum ${this.maxFiles} files allowed per upload`,
-      );
+      throw new BadRequestException(FILE_ERRORS.TOO_MANY_FILES);
     }
 
-    const fileValidationPipe = new FileValidationPipe(this.maxSize);
+    // Check total upload size
+    const totalSize = files.reduce((sum, file) => sum + file.size, 0);
+    if (totalSize > this.maxTotalSize) {
+      throw new BadRequestException(FILE_ERRORS.TOTAL_SIZE_EXCEEDED);
+    }
+
+    // Validate each file
+    const fileValidationPipe = new FileValidationPipe(this.maxSizePerFile);
     const validatedFiles = await Promise.all(
       files.map((file) => fileValidationPipe.transform(file)),
     );

@@ -63,6 +63,34 @@ export class StorageService implements OnModuleInit {
     };
   }
 
+  async uploadStream(
+    stream: Readable,
+    path: string,
+    contentType: string,
+    size: number,
+    bucket: string = this.defaultBucket,
+  ): Promise<UploadResult> {
+    const metaData = {
+      'Content-Type': contentType,
+    };
+
+    const result = await this.client.putObject(
+      bucket,
+      path,
+      stream,
+      size,
+      metaData,
+    );
+
+    this.logger.debug(`Stream upload completed: ${path} (${size} bytes)`);
+
+    return {
+      path,
+      etag: result.etag,
+      versionId: result.versionId,
+    };
+  }
+
   async delete(
     path: string,
     bucket: string = this.defaultBucket,

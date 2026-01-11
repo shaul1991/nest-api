@@ -6,6 +6,7 @@ import {
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
+import { Readable } from 'stream';
 import { v4 as uuidv4 } from 'uuid';
 import * as crypto from 'crypto';
 import * as path from 'path';
@@ -41,8 +42,16 @@ export class FilesService {
     const checksum = this.generateChecksum(file.buffer);
     const category = this.determineCategory(file.mimetype);
 
-    // Upload original file
-    await this.storageService.upload(file.buffer, storagePath, file.mimetype);
+    // Upload original file using streaming
+    const fileStream = this.bufferToStream(file.buffer);
+    await this.storageService.uploadStream(
+      fileStream,
+      storagePath,
+      file.mimetype,
+      file.size,
+    );
+
+    this.logger.debug(`File streamed to storage: ${storagePath}`);
 
     // Generate thumbnails for images
     let thumbnailPath: string | null = null;
@@ -60,9 +69,25 @@ export class FilesService {
         thumbnailPathSmall = this.generateThumbnailPath(fileId, 'small');
         thumbnailPath = this.generateThumbnailPath(fileId, 'medium');
 
+        // Stream thumbnails to storage
+        const [smallStream, mediumStream] = [
+          this.bufferToStream(small),
+          this.bufferToStream(medium),
+        ];
+
         await Promise.all([
-          this.storageService.upload(small, thumbnailPathSmall, 'image/webp'),
-          this.storageService.upload(medium, thumbnailPath, 'image/webp'),
+          this.storageService.uploadStream(
+            smallStream,
+            thumbnailPathSmall,
+            'image/webp',
+            small.length,
+          ),
+          this.storageService.uploadStream(
+            mediumStream,
+            thumbnailPath,
+            'image/webp',
+            medium.length,
+          ),
         ]);
 
         this.logger.log(`Thumbnails generated for file: ${fileId}`);
@@ -91,7 +116,7 @@ export class FilesService {
     });
 
     const savedFile = await this.fileRepository.save(fileEntity);
-    this.logger.log(`File uploaded: ${savedFile.id}`);
+    this.logger.log(`File uploaded: ${savedFile.id} (${file.size} bytes)`);
 
     return this.toResponseDto(savedFile);
   }
@@ -235,6 +260,13 @@ export class FilesService {
   }
 
   // Helper methods
+  private bufferToStream(buffer: Buffer): Readable {
+    const stream = new Readable();
+    stream.push(buffer);
+    stream.push(null);
+    return stream;
+  }
+
   private generateStoragePath(fileId: string, ext: string): string {
     const date = new Date();
     const year = date.getFullYear();

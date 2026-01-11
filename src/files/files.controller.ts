@@ -61,7 +61,7 @@ export class FilesController {
   @ApiResponse({ status: 401, description: '인증 필요' })
   @UseInterceptors(
     FileInterceptor('file', {
-      limits: { fileSize: FILE_SIZE_LIMITS.DEFAULT },
+      limits: { fileSize: FILE_SIZE_LIMITS.SINGLE_FILE },
     }),
   )
   async uploadFile(
@@ -83,7 +83,7 @@ export class FilesController {
   @ApiResponse({ status: 400, description: '잘못된 파일 형식 또는 크기' })
   @UseInterceptors(
     FilesInterceptor('files', MAX_FILES_PER_UPLOAD, {
-      limits: { fileSize: FILE_SIZE_LIMITS.DEFAULT },
+      limits: { fileSize: FILE_SIZE_LIMITS.SINGLE_FILE },
     }),
   )
   async uploadMultiple(

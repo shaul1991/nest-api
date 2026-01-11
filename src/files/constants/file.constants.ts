@@ -1,9 +1,10 @@
 import { ThumbnailConfig } from '../interfaces/file-metadata.interface';
 
 export const FILE_SIZE_LIMITS = {
-  DEFAULT: 50 * 1024 * 1024, // 50MB
-  IMAGE: 10 * 1024 * 1024, // 10MB
-  DOCUMENT: 50 * 1024 * 1024, // 50MB
+  SINGLE_FILE: 5 * 1024 * 1024, // 5MB per file
+  TOTAL_UPLOAD: 50 * 1024 * 1024, // 50MB total per request
+  IMAGE: 5 * 1024 * 1024, // 5MB for images
+  DOCUMENT: 5 * 1024 * 1024, // 5MB for documents
 } as const;
 
 export const ALLOWED_MIME_TYPES = [
@@ -50,11 +51,13 @@ export const THUMBNAIL_CONFIGS: Record<string, ThumbnailConfig> = {
 export const FILE_ERRORS = {
   NOT_FOUND: 'File not found',
   INVALID_MIME_TYPE: 'File type not allowed',
-  FILE_TOO_LARGE: 'File size exceeds limit',
+  FILE_TOO_LARGE: 'File size exceeds limit (max 5MB per file)',
+  TOTAL_SIZE_EXCEEDED: 'Total upload size exceeds limit (max 50MB)',
   FORBIDDEN: 'You do not have permission to access this file',
   UPLOAD_FAILED: 'File upload failed',
   EMPTY_FILE: 'Empty file not allowed',
   INVALID_FILE: 'Invalid file content',
+  TOO_MANY_FILES: 'Too many files (max 10 files per upload)',
 } as const;
 
 // Magic number signatures for file validation
