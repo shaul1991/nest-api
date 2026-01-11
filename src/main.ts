@@ -57,6 +57,13 @@ async function bootstrap() {
 
   // Swagger (development only)
   if (nodeEnv !== 'production') {
+    // Add no-cache headers for Swagger assets to prevent CDN caching issues
+    app.use('/api-docs', (req, res, next) => {
+      res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate');
+      res.setHeader('Pragma', 'no-cache');
+      res.setHeader('Expires', '0');
+      next();
+    });
     setupSwagger(app);
     logger.log('Swagger documentation available at /api-docs');
   }
