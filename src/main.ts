@@ -1,6 +1,7 @@
 import { NestFactory } from '@nestjs/core';
 import { ValidationPipe, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
+import type { Request, Response, NextFunction } from 'express';
 import cookieParser from 'cookie-parser';
 import helmet from 'helmet';
 import { AppModule } from './app.module';
@@ -58,7 +59,7 @@ async function bootstrap() {
   // Swagger (development only)
   if (nodeEnv !== 'production') {
     // Add no-cache headers for Swagger assets to prevent CDN caching issues
-    app.use('/api-docs', (req, res, next) => {
+    app.use('/api-docs', (_req: Request, res: Response, next: NextFunction) => {
       res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate');
       res.setHeader('Pragma', 'no-cache');
       res.setHeader('Expires', '0');
