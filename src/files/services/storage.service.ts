@@ -24,9 +24,13 @@ export class StorageService implements OnModuleInit {
   async onModuleInit(): Promise<void> {
     try {
       await this.ensureBucketExists(this.defaultBucket);
-      this.logger.log(`Storage service initialized with bucket: ${this.defaultBucket}`);
-    } catch (error) {
-      this.logger.error(`Failed to initialize storage: ${error.message}`);
+      this.logger.log(
+        `Storage service initialized with bucket: ${this.defaultBucket}`,
+      );
+    } catch (error: unknown) {
+      const errorMessage =
+        error instanceof Error ? error.message : 'Unknown error';
+      this.logger.error(`Failed to initialize storage: ${errorMessage}`);
     }
   }
 

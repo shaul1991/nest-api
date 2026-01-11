@@ -20,6 +20,7 @@ import {
 } from './dto/file-response.dto';
 import { User } from '../users/entities/user.entity';
 import { FILE_ERRORS, THUMBNAIL_CONFIGS } from './constants/file.constants';
+import { UploadedFile } from './interfaces/file-metadata.interface';
 
 @Injectable()
 export class FilesService {
@@ -33,7 +34,7 @@ export class FilesService {
   ) {}
 
   async upload(
-    file: Express.Multer.File,
+    file: UploadedFile,
     uploaderId: string,
   ): Promise<FileResponseDto> {
     const fileId = uuidv4();
@@ -63,8 +64,9 @@ export class FilesService {
         const imageMetadata = await this.imageService.getMetadata(file.buffer);
         metadata = { ...imageMetadata };
 
-        const { small, medium } =
-          await this.imageService.generateThumbnails(file.buffer);
+        const { small, medium } = await this.imageService.generateThumbnails(
+          file.buffer,
+        );
 
         thumbnailPathSmall = this.generateThumbnailPath(fileId, 'small');
         thumbnailPath = this.generateThumbnailPath(fileId, 'medium');
@@ -91,9 +93,11 @@ export class FilesService {
         ]);
 
         this.logger.log(`Thumbnails generated for file: ${fileId}`);
-      } catch (error) {
+      } catch (error: unknown) {
+        const errorMessage =
+          error instanceof Error ? error.message : 'Unknown error';
         this.logger.warn(
-          `Thumbnail generation failed for ${fileId}: ${error.message}`,
+          `Thumbnail generation failed for ${fileId}: ${errorMessage}`,
         );
         // Continue without thumbnails
       }
@@ -122,7 +126,7 @@ export class FilesService {
   }
 
   async uploadMultiple(
-    files: Express.Multer.File[],
+    files: UploadedFile[],
     uploaderId: string,
   ): Promise<FileResponseDto[]> {
     const results = await Promise.all(
@@ -199,7 +203,8 @@ export class FilesService {
       expiresIn,
     );
 
-    const config = size === 'small' ? THUMBNAIL_CONFIGS.SMALL : THUMBNAIL_CONFIGS.MEDIUM;
+    const config =
+      size === 'small' ? THUMBNAIL_CONFIGS.SMALL : THUMBNAIL_CONFIGS.MEDIUM;
 
     return {
       url,
@@ -235,8 +240,10 @@ export class FilesService {
 
     try {
       await this.storageService.deleteMultiple(pathsToDelete);
-    } catch (error) {
-      this.logger.warn(`Failed to delete files from storage: ${error.message}`);
+    } catch (error: unknown) {
+      const errorMessage =
+        error instanceof Error ? error.message : 'Unknown error';
+      this.logger.warn(`Failed to delete files from storage: ${errorMessage}`);
     }
 
     // Delete from database
@@ -287,10 +294,11 @@ export class FilesService {
   }
 
   private sanitizeFilename(filename: string): string {
-    return path
-      .basename(filename)
-      .replace(/[<>:"/\\|?*\x00-\x1f]/g, '_')
-      .slice(0, 255);
+    const basename = path.basename(filename);
+    // Control characters must be removed for security
+    // eslint-disable-next-line no-control-regex
+    const sanitized = basename.replace(/[<>:"/\\|?*\x00-\x1f]/g, '_');
+    return sanitized.slice(0, 255);
   }
 
   private generateChecksum(buffer: Buffer): string {

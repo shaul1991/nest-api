@@ -1,8 +1,4 @@
-import {
-  PipeTransform,
-  Injectable,
-  BadRequestException,
-} from '@nestjs/common';
+import { PipeTransform, Injectable, BadRequestException } from '@nestjs/common';
 import * as path from 'path';
 import {
   ALLOWED_MIME_TYPES,
@@ -11,6 +7,7 @@ import {
   FILE_ERRORS,
   MAX_FILES_PER_UPLOAD,
 } from '../constants/file.constants';
+import { UploadedFile } from '../interfaces/file-metadata.interface';
 
 @Injectable()
 export class FileValidationPipe implements PipeTransform {
@@ -18,7 +15,7 @@ export class FileValidationPipe implements PipeTransform {
     private readonly maxSize: number = FILE_SIZE_LIMITS.SINGLE_FILE,
   ) {}
 
-  async transform(file: Express.Multer.File): Promise<Express.Multer.File> {
+  transform(file: UploadedFile): UploadedFile {
     if (!file) {
       throw new BadRequestException('File is required');
     }
@@ -36,7 +33,11 @@ export class FileValidationPipe implements PipeTransform {
     }
 
     // 3. Check MIME type whitelist
-    if (!ALLOWED_MIME_TYPES.includes(file.mimetype as (typeof ALLOWED_MIME_TYPES)[number])) {
+    if (
+      !ALLOWED_MIME_TYPES.includes(
+        file.mimetype as (typeof ALLOWED_MIME_TYPES)[number],
+      )
+    ) {
       throw new BadRequestException(FILE_ERRORS.INVALID_MIME_TYPE);
     }
 
@@ -68,11 +69,11 @@ export class FileValidationPipe implements PipeTransform {
     // Get basename to prevent path traversal
     const basename = path.basename(filename);
 
-    // Remove dangerous characters, normalize unicode
-    return basename
-      .normalize('NFC')
-      .replace(/[<>:"/\\|?*\x00-\x1f]/g, '_')
-      .substring(0, 255);
+    // Remove dangerous characters (control chars are intentional for security)
+    const normalized = basename.normalize('NFC');
+    /* eslint-disable-next-line no-control-regex */
+    const sanitized = normalized.replace(/[<>:"/\\|?*\x00-\x1f]/g, '_');
+    return sanitized.substring(0, 255);
   }
 }
 
@@ -84,7 +85,7 @@ export class FilesValidationPipe implements PipeTransform {
     private readonly maxFiles: number = MAX_FILES_PER_UPLOAD,
   ) {}
 
-  async transform(files: Express.Multer.File[]): Promise<Express.Multer.File[]> {
+  transform(files: UploadedFile[]): UploadedFile[] {
     if (!files || files.length === 0) {
       throw new BadRequestException('At least one file is required');
     }
@@ -102,8 +103,8 @@ export class FilesValidationPipe implements PipeTransform {
 
     // Validate each file
     const fileValidationPipe = new FileValidationPipe(this.maxSizePerFile);
-    const validatedFiles = await Promise.all(
-      files.map((file) => fileValidationPipe.transform(file)),
+    const validatedFiles = files.map((file) =>
+      fileValidationPipe.transform(file),
     );
 
     return validatedFiles;

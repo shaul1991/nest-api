@@ -4,7 +4,10 @@ import {
   FileMetadata,
   ThumbnailConfig,
 } from '../interfaces/file-metadata.interface';
-import { THUMBNAIL_CONFIGS, IMAGE_MIME_TYPES } from '../constants/file.constants';
+import {
+  THUMBNAIL_CONFIGS,
+  IMAGE_MIME_TYPES,
+} from '../constants/file.constants';
 
 @Injectable()
 export class ImageService {
@@ -30,8 +33,10 @@ export class ImageService {
         hasAlpha: metadata.hasAlpha,
         orientation: metadata.orientation,
       };
-    } catch (error) {
-      this.logger.warn(`Failed to get image metadata: ${error.message}`);
+    } catch (error: unknown) {
+      const errorMessage =
+        error instanceof Error ? error.message : 'Unknown error';
+      this.logger.warn(`Failed to get image metadata: ${errorMessage}`);
       throw new BadRequestException('Invalid image file');
     }
   }
@@ -73,8 +78,10 @@ export class ImageService {
       }
 
       return pipeline.toBuffer();
-    } catch (error) {
-      this.logger.error(`Thumbnail generation failed: ${error.message}`);
+    } catch (error: unknown) {
+      const errorMessage =
+        error instanceof Error ? error.message : 'Unknown error';
+      this.logger.error(`Thumbnail generation failed: ${errorMessage}`);
       throw new BadRequestException('Thumbnail generation failed');
     }
   }
@@ -123,7 +130,9 @@ export class ImageService {
   }
 
   isSupportedImage(mimeType: string): boolean {
-    return IMAGE_MIME_TYPES.includes(mimeType as (typeof IMAGE_MIME_TYPES)[number]);
+    return IMAGE_MIME_TYPES.includes(
+      mimeType as (typeof IMAGE_MIME_TYPES)[number],
+    );
   }
 
   async validateImage(buffer: Buffer): Promise<FileMetadata> {

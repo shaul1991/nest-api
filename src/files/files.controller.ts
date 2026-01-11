@@ -41,6 +41,7 @@ import {
   FILE_SIZE_LIMITS,
   MAX_FILES_PER_UPLOAD,
 } from './constants/file.constants';
+import { UploadedFile as UploadedFileType } from './interfaces/file-metadata.interface';
 
 @ApiTags('Files')
 @ApiBearerAuth('access-token')
@@ -65,7 +66,7 @@ export class FilesController {
     }),
   )
   async uploadFile(
-    @UploadedFile(new FileValidationPipe()) file: Express.Multer.File,
+    @UploadedFile(new FileValidationPipe()) file: UploadedFileType,
     @CurrentUser() user: User,
   ): Promise<FileResponseDto> {
     return this.filesService.upload(file, user.id);
@@ -87,7 +88,7 @@ export class FilesController {
     }),
   )
   async uploadMultiple(
-    @UploadedFiles(new FilesValidationPipe()) files: Express.Multer.File[],
+    @UploadedFiles(new FilesValidationPipe()) files: UploadedFileType[],
     @CurrentUser() user: User,
   ): Promise<FileResponseDto[]> {
     return this.filesService.uploadMultiple(files, user.id);

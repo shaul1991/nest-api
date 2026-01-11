@@ -28,3 +28,12 @@ export interface StorageConfig {
   secretKey: string;
   bucket: string;
 }
+
+export interface UploadedFile {
+  fieldname: string;
+  originalname: string;
+  encoding: string;
+  mimetype: string;
+  size: number;
+  buffer: Buffer;
+}
