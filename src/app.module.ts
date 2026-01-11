@@ -17,13 +17,14 @@ import { validate } from './config/env.validation';
 import databaseConfig from './config/database.config';
 import redisConfig from './config/redis.config';
 import authConfig from './config/auth.config';
+import storageConfig from './config/storage.config';
 
 @Module({
   imports: [
     ConfigModule.forRoot({
       isGlobal: true,
       validate,
-      load: [databaseConfig, redisConfig, authConfig],
+      load: [databaseConfig, redisConfig, authConfig, storageConfig],
     }),
     TypeOrmModule.forRootAsync({
       imports: [ConfigModule],
