@@ -49,7 +49,9 @@ export class User {
   @UpdateDateColumn({ name: 'updated_at' })
   updatedAt: Date;
 
-  @ManyToMany(() => Role, (role) => role.users, { eager: true })
+  // eager: false - 필요한 곳에서만 명시적으로 relations 로드
+  // 성능 최적화: 모든 User 쿼리에서 자동 JOIN 방지
+  @ManyToMany(() => Role, (role) => role.users, { eager: false })
   @JoinTable({
     name: 'user_roles',
     joinColumn: { name: 'user_id', referencedColumnName: 'id' },
