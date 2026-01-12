@@ -86,4 +86,46 @@ export class UsersService {
   async updatePassword(id: string, hashedPassword: string): Promise<void> {
     await this.userRepository.update(id, { password: hashedPassword });
   }
+
+  async createOAuthUser(data: {
+    email: string;
+    firstName?: string;
+    lastName?: string;
+    displayName?: string;
+    profileImage?: string;
+  }): Promise<User> {
+    const existingUser = await this.findByEmail(data.email);
+    if (existingUser) {
+      throw new ConflictException(AUTH_ERRORS.EMAIL_EXISTS);
+    }
+
+    let defaultRole = await this.roleRepository.findOne({
+      where: { name: RoleType.USER },
+    });
+
+    if (!defaultRole) {
+      defaultRole = this.roleRepository.create({
+        name: RoleType.USER,
+        description: 'Default user role',
+      });
+      await this.roleRepository.save(defaultRole);
+    }
+
+    const user = this.userRepository.create({
+      email: data.email,
+      firstName: data.firstName,
+      lastName: data.lastName,
+      displayName: data.displayName,
+      profileImage: data.profileImage,
+      isEmailVerified: true,
+      password: '',
+      roles: [defaultRole],
+    });
+
+    return this.userRepository.save(user);
+  }
+
+  async verifyEmail(userId: string): Promise<void> {
+    await this.userRepository.update(userId, { isEmailVerified: true });
+  }
 }
