@@ -13,11 +13,14 @@ export class StorageService implements OnModuleInit {
   private defaultBucket: string;
 
   constructor(private readonly configService: ConfigService) {
-    const endpoint = this.configService.get<string>('storage.endpoint') || 'localhost';
+    const endpoint =
+      this.configService.get<string>('storage.endpoint') || 'localhost';
     const port = this.configService.get<number>('storage.port') || 9000;
 
     // ConfigModule이 process.env를 덮어쓰므로 .env 파일에서 직접 읽기
-    const envFile = fs.existsSync('.env') ? dotenv.parse(fs.readFileSync('.env')) : {};
+    const envFile = fs.existsSync('.env')
+      ? dotenv.parse(fs.readFileSync('.env'))
+      : {};
     const useSSL = envFile.MINIO_USE_SSL === 'true';
 
     this.client = new Minio.Client({

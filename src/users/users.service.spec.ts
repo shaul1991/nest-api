@@ -30,6 +30,8 @@ describe('UsersService', () => {
     password: 'hashedPassword123',
     firstName: 'Test',
     lastName: 'User',
+    profileImage: 'https://example.com/avatar.png',
+    displayName: 'Test User',
     isActive: true,
     isEmailVerified: false,
     lastLoginAt: null as unknown as Date,
@@ -93,12 +95,12 @@ describe('UsersService', () => {
         ...mockUser,
         email: createUserDto.email,
         password: hashedPassword,
-      });
+      } as User);
       userRepository.save.mockResolvedValue({
         ...mockUser,
         email: createUserDto.email,
         password: hashedPassword,
-      });
+      } as User);
 
       const result = await usersService.create(createUserDto, hashedPassword);
 
@@ -127,13 +129,13 @@ describe('UsersService', () => {
         email: createUserDto.email,
         password: hashedPassword,
         roles: [newRole],
-      });
+      } as User);
       userRepository.save.mockResolvedValue({
         ...mockUser,
         email: createUserDto.email,
         password: hashedPassword,
         roles: [newRole],
-      });
+      } as User);
 
       const result = await usersService.create(createUserDto, hashedPassword);
 
@@ -227,7 +229,7 @@ describe('UsersService', () => {
         ...mockUser,
         firstName: updateUserDto.firstName,
         lastName: updateUserDto.lastName,
-      };
+      } as User;
 
       userRepository.findOne.mockResolvedValue(mockUser);
       userRepository.save.mockResolvedValue(updatedUser);

@@ -46,6 +46,8 @@ describe('AuthService', () => {
     password: 'hashedPassword123',
     firstName: 'Test',
     lastName: 'User',
+    profileImage: 'https://example.com/avatar.png',
+    displayName: 'Test User',
     isActive: true,
     isEmailVerified: false,
     lastLoginAt: null as unknown as Date,
@@ -193,7 +195,7 @@ describe('AuthService', () => {
       usersService.create.mockResolvedValue({
         ...mockUser,
         email: createUserDto.email,
-      });
+      } as User);
 
       const result = await authService.register(createUserDto);
 

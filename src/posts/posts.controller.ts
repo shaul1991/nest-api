@@ -76,7 +76,9 @@ export class PostsController {
     description: '게시글 목록 조회 성공',
     type: PostListResponseDto,
   })
-  async findAll(@Query() query: PostListQueryDto): Promise<PostListResponseDto> {
+  async findAll(
+    @Query() query: PostListQueryDto,
+  ): Promise<PostListResponseDto> {
     return this.postsService.findAll(query);
   }
 
@@ -84,7 +86,8 @@ export class PostsController {
   @Public()
   @ApiOperation({
     summary: '게시글 상세 조회',
-    description: '특정 게시글의 상세 정보를 조회합니다. 조회수가 자동으로 증가합니다.',
+    description:
+      '특정 게시글의 상세 정보를 조회합니다. 조회수가 자동으로 증가합니다.',
   })
   @ApiParam({ name: 'id', description: '게시글 ID', type: 'string' })
   @ApiResponse({

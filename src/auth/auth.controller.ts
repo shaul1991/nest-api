@@ -32,8 +32,10 @@ import { LocalAuthGuard } from './guards/local-auth.guard';
 import { JwtRefreshGuard } from './guards/jwt-refresh.guard';
 import { GoogleAuthGuard } from './guards/google-auth.guard';
 import { KakaoAuthGuard } from './guards/kakao-auth.guard';
+import { GitHubAuthGuard } from './guards/github-auth.guard';
 import { GoogleProfile } from './strategies/google.strategy';
 import { KakaoProfile } from './strategies/kakao.strategy';
+import { GitHubProfile } from './strategies/github.strategy';
 import { Public } from './decorators/public.decorator';
 import { CurrentUser } from './decorators/current-user.decorator';
 import { CreateUserDto } from '../users/dto/create-user.dto';
@@ -262,6 +264,40 @@ export class AuthController {
   ): Promise<void> {
     const { user, isNewUser } = await this.oauthService.findOrCreateKakaoUser(
       req.user as KakaoProfile & { accessToken: string; refreshToken: string },
+    );
+    const tokens = await this.authService.login(user);
+    this.setRefreshTokenCookie(res, tokens.refreshToken);
+
+    const frontendUrl = this.configService.get<string>('FRONTEND_URL');
+    res.redirect(
+      `${frontendUrl}/auth/callback?accessToken=${tokens.accessToken}&isNewUser=${isNewUser}`,
+    );
+  }
+
+  // ==========================================
+  // OAuth - GitHub
+  // ==========================================
+  @Public()
+  @Get('github')
+  @UseGuards(GitHubAuthGuard)
+  @ApiOperation({
+    summary: 'GitHub 로그인',
+    description: 'GitHub OAuth 로그인 페이지로 리다이렉트합니다.',
+  })
+  async githubAuth(): Promise<void> {
+    // Guard가 리다이렉트 처리
+  }
+
+  @Public()
+  @Get('github/callback')
+  @UseGuards(GitHubAuthGuard)
+  @ApiExcludeEndpoint()
+  async githubCallback(
+    @Req() req: Request,
+    @Res() res: Response,
+  ): Promise<void> {
+    const { user, isNewUser } = await this.oauthService.findOrCreateGitHubUser(
+      req.user as GitHubProfile & { accessToken: string; refreshToken: string },
     );
     const tokens = await this.authService.login(user);
     this.setRefreshTokenCookie(res, tokens.refreshToken);

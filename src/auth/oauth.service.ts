@@ -6,6 +6,7 @@ import { UsersService } from '../users/users.service';
 import { User } from '../users/entities/user.entity';
 import { GoogleProfile } from './strategies/google.strategy';
 import { KakaoProfile } from './strategies/kakao.strategy';
+import { GitHubProfile } from './strategies/github.strategy';
 
 export interface OAuthUser {
   user: User;
@@ -124,6 +125,59 @@ export class OAuthService {
     );
 
     this.logger.log(`New Kakao user created: ${email}`);
+    return { user: newUser, isNewUser: true };
+  }
+
+  async findOrCreateGitHubUser(
+    profile: GitHubProfile & { accessToken: string; refreshToken: string },
+  ): Promise<OAuthUser> {
+    const existingOAuth = await this.oauthAccountRepository.findOne({
+      where: {
+        provider: OAuthProvider.GITHUB,
+        providerAccountId: profile.id,
+      },
+      relations: ['user'],
+    });
+
+    if (existingOAuth) {
+      await this.oauthAccountRepository.update(existingOAuth.id, {
+        accessToken: profile.accessToken,
+        refreshToken: profile.refreshToken,
+      });
+
+      return { user: existingOAuth.user, isNewUser: false };
+    }
+
+    if (profile.email) {
+      const existingUser = await this.usersService.findByEmail(profile.email);
+      if (existingUser) {
+        await this.createOAuthAccount(
+          existingUser.id,
+          OAuthProvider.GITHUB,
+          profile.id,
+          profile.accessToken,
+          profile.refreshToken,
+        );
+        return { user: existingUser, isNewUser: false };
+      }
+    }
+
+    const email = profile.email || `github_${profile.id}@commu.local`;
+    const newUser = await this.usersService.createOAuthUser({
+      email,
+      displayName: profile.displayName || profile.username,
+      profileImage: profile.avatarUrl,
+    });
+
+    await this.createOAuthAccount(
+      newUser.id,
+      OAuthProvider.GITHUB,
+      profile.id,
+      profile.accessToken,
+      profile.refreshToken,
+    );
+
+    this.logger.log(`New GitHub user created: ${email}`);
     return { user: newUser, isNewUser: true };
   }
 

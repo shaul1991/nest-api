@@ -15,6 +15,7 @@ import { JwtStrategy } from './strategies/jwt.strategy';
 import { JwtRefreshStrategy } from './strategies/jwt-refresh.strategy';
 import { GoogleStrategy } from './strategies/google.strategy';
 import { KakaoStrategy } from './strategies/kakao.strategy';
+import { GitHubStrategy } from './strategies/github.strategy';
 import { OAuthAccount } from './entities/oauth-account.entity';
 import { EmailVerification } from './entities/email-verification.entity';
 import { PasswordResetToken } from './entities/password-reset-token.entity';
@@ -53,6 +54,7 @@ import authConfig from '../config/auth.config';
     JwtRefreshStrategy,
     GoogleStrategy,
     KakaoStrategy,
+    GitHubStrategy,
   ],
   exports: [AuthService, OAuthService],
 })

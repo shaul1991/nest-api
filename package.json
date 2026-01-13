@@ -20,7 +20,14 @@
     "test:unit": "jest --testPathPatterns=src.*\\.spec\\.ts$",
     "test:integration": "jest --config ./test/jest-e2e.json --testPathPatterns=integration",
     "test:e2e": "jest --config ./test/jest-e2e.json --testPathPatterns=e2e-spec --forceExit",
-    "test:all": "npm run test:unit && npm run test:integration && npm run test:e2e"
+    "test:all": "npm run test:unit && npm run test:integration && npm run test:e2e",
+    "type-check": "tsc --noEmit",
+    "lint:check": "eslint \"{src,apps,libs,test}/**/*.ts\"",
+    "ci": "npm run type-check && npm run lint:check && npm run build",
+    "migration:generate": "typeorm-ts-node-commonjs migration:generate -d src/config/typeorm.datasource.ts",
+    "migration:run": "typeorm-ts-node-commonjs migration:run -d src/config/typeorm.datasource.ts",
+    "migration:revert": "typeorm-ts-node-commonjs migration:revert -d src/config/typeorm.datasource.ts",
+    "migration:show": "typeorm-ts-node-commonjs migration:show -d src/config/typeorm.datasource.ts"
   },
   "dependencies": {
     "@keyv/redis": "^5.1.5",
@@ -52,6 +59,7 @@
     "minio": "^8.0.4",
     "nodemailer": "^7.0.12",
     "passport": "^0.7.0",
+    "passport-github2": "^0.1.12",
     "passport-google-oauth20": "^2.0.0",
     "passport-jwt": "^4.0.1",
     "passport-kakao": "^1.0.1",
@@ -78,6 +86,7 @@
     "@types/jest": "^30.0.0",
     "@types/multer": "^1.4.12",
     "@types/node": "^22.10.7",
+    "@types/passport-github2": "^1.2.9",
     "@types/passport-jwt": "^4.0.1",
     "@types/passport-local": "^1.0.38",
     "@types/sanitize-html": "^2.16.0",

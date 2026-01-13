@@ -7,36 +7,62 @@ import helmet from 'helmet';
 import { AppModule } from './app.module';
 import { setupSwagger } from './config/swagger.config';
 import { RedisIoAdapter } from './adapters/redis-io.adapter';
+import { SanitizePipe } from './common/pipes/sanitize.pipe';
+import { SecurityLoggingInterceptor } from './common/interceptors/security-logging.interceptor';
+import { HttpExceptionFilter } from './common/filters/http-exception.filter';
+import { createCorsOptions } from './config/cors.config';
 
 async function bootstrap() {
   const logger = new Logger('Bootstrap');
   const app = await NestFactory.create(AppModule);
   const configService = app.get(ConfigService);
 
-  // Security middleware
+  // Security middleware (SEC-MVP-001)
   app.use(
     helmet({
-      contentSecurityPolicy: false, // WebSocket 호환성을 위해
+      contentSecurityPolicy: {
+        directives: {
+          defaultSrc: ["'self'"],
+          styleSrc: ["'self'", "'unsafe-inline'"],
+          scriptSrc: ["'self'"],
+          imgSrc: ["'self'", 'data:', 'blob:'],
+          connectSrc: ["'self'", 'wss:', 'ws:'],
+          fontSrc: ["'self'"],
+          objectSrc: ["'none'"],
+          mediaSrc: ["'self'"],
+          frameSrc: ["'none'"],
+        },
+      },
+      crossOriginEmbedderPolicy: false, // WebSocket 호환성
+      crossOriginResourcePolicy: { policy: 'cross-origin' },
     }),
   );
 
-  // Cookie parser
-  app.use(cookieParser());
+  // Cookie parser with secure options
+  app.use(cookieParser(configService.get<string>('auth.jwt.secret')));
 
-  // Validation pipe
+  // Global Pipes (SEC-MVP-002: Sanitization + Validation)
   app.useGlobalPipes(
+    new SanitizePipe(), // XSS 방지
     new ValidationPipe({
       whitelist: true,
       forbidNonWhitelisted: true,
       transform: true,
+      transformOptions: {
+        enableImplicitConversion: true,
+      },
+      disableErrorMessages: process.env.NODE_ENV === 'production',
     }),
   );
 
-  // CORS
-  app.enableCors({
-    origin: process.env.CORS_ORIGIN?.split(',') || '*',
-    credentials: true,
-  });
+  // Global Interceptors (SEC-MVP-003: Security Logging)
+  app.useGlobalInterceptors(new SecurityLoggingInterceptor());
+
+  // Global Exception Filter (BE-MVP-005: 일관된 에러 응답)
+  app.useGlobalFilters(new HttpExceptionFilter());
+
+  // CORS (SEC-MVP-004: Enhanced CORS configuration)
+  app.enableCors(createCorsOptions());
 
   // Redis WebSocket Adapter (production에서만 사용)
   const nodeEnv = process.env.NODE_ENV;

@@ -13,6 +13,7 @@ import { User } from '../../users/entities/user.entity';
 export enum OAuthProvider {
   GOOGLE = 'GOOGLE',
   KAKAO = 'KAKAO',
+  GITHUB = 'GITHUB',
 }
 
 @Entity('oauth_accounts')
