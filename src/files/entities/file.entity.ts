@@ -42,10 +42,20 @@ export class File {
   @Column({ type: 'bigint' })
   size: number;
 
-  @Column({ name: 'thumbnail_path', type: 'varchar', length: 500, nullable: true })
+  @Column({
+    name: 'thumbnail_path',
+    type: 'varchar',
+    length: 500,
+    nullable: true,
+  })
   thumbnailPath: string | null;
 
-  @Column({ name: 'thumbnail_path_small', type: 'varchar', length: 500, nullable: true })
+  @Column({
+    name: 'thumbnail_path_small',
+    type: 'varchar',
+    length: 500,
+    nullable: true,
+  })
   thumbnailPathSmall: string | null;
 
   @Column({ type: 'varchar', length: 100, default: 'uploads' })

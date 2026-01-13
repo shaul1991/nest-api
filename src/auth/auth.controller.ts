@@ -131,7 +131,10 @@ export class AuthController {
     @CurrentUser() data: { userId: string; refreshToken: string },
     @Res({ passthrough: true }) res: Response,
   ): Promise<TokenResponse> {
-    const tokens = await this.authService.refreshTokens(data.userId, data.refreshToken);
+    const tokens = await this.authService.refreshTokens(
+      data.userId,
+      data.refreshToken,
+    );
     this.setRefreshTokenCookie(res, tokens.refreshToken);
     return tokens;
   }
@@ -307,9 +310,7 @@ export class AuthController {
     description: '이메일 인증 성공',
   })
   @ApiBadRequestResponse({ description: '유효하지 않거나 만료된 토큰' })
-  async verifyEmail(
-    @Body() dto: VerifyEmailDto,
-  ): Promise<{ message: string }> {
+  async verifyEmail(@Body() dto: VerifyEmailDto): Promise<{ message: string }> {
     await this.emailVerificationService.verifyEmail(dto.token);
     return { message: '이메일이 인증되었습니다.' };
   }
@@ -362,7 +363,8 @@ export class AuthController {
   // Helper Methods
   // ==========================================
   private setRefreshTokenCookie(res: Response, refreshToken: string): void {
-    const isProduction = this.configService.get<string>('NODE_ENV') === 'production';
+    const isProduction =
+      this.configService.get<string>('NODE_ENV') === 'production';
 
     res.cookie('refreshToken', refreshToken, {
       httpOnly: true,

@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { PassportStrategy } from '@nestjs/passport';
-import { Strategy } from 'passport-kakao';
+import { Strategy, Profile } from 'passport-kakao';
 import { ConfigService } from '@nestjs/config';
 
 export interface KakaoProfile {
@@ -10,24 +10,38 @@ export interface KakaoProfile {
   profileImage: string;
 }
 
+interface KakaoAccount {
+  email?: string;
+  profile?: {
+    nickname?: string;
+    profile_image_url?: string;
+  };
+}
+
 @Injectable()
 export class KakaoStrategy extends PassportStrategy(Strategy, 'kakao') {
   constructor(private readonly configService: ConfigService) {
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-call
     super({
-      clientID: configService.get<string>('KAKAO_CLIENT_ID'),
-      clientSecret: configService.get<string>('KAKAO_CLIENT_SECRET'),
-      callbackURL: configService.get<string>('KAKAO_CALLBACK_URL'),
+      clientID: configService.get<string>('KAKAO_CLIENT_ID')!,
+      clientSecret: configService.get<string>('KAKAO_CLIENT_SECRET')!,
+      callbackURL: configService.get<string>('KAKAO_CALLBACK_URL')!,
     });
   }
 
-  async validate(
+  validate(
     accessToken: string,
     refreshToken: string,
-    profile: any,
-    done: (error: any, user?: any) => void,
-  ): Promise<void> {
+    profile: Profile,
+    done: (
+      error: Error | null,
+      user?: KakaoProfile & { accessToken: string; refreshToken: string },
+    ) => void,
+  ): void {
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
     const { id, _json } = profile;
-    const kakaoAccount = _json.kakao_account;
+    const kakaoAccount = (_json as { kakao_account?: KakaoAccount })
+      .kakao_account;
 
     const user: KakaoProfile = {
       id: String(id),

@@ -26,7 +26,8 @@ export class MailService {
   }
 
   async sendMail(options: SendMailOptions): Promise<void> {
-    const from = this.configService.get<string>('SMTP_FROM') || 'Commu <noreply@commu.kr>';
+    const from =
+      this.configService.get<string>('SMTP_FROM') || 'Commu <noreply@commu.kr>';
 
     try {
       await this.transporter.sendMail({

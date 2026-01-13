@@ -130,7 +130,8 @@ export class ChatService {
     );
 
     // Redis 파이프라인으로 온라인 사용자 수 일괄 조회
-    const onlineCounts = await this.chatRedisService.getOnlineCountBatch(roomIds);
+    const onlineCounts =
+      await this.chatRedisService.getOnlineCountBatch(roomIds);
     const onlineCountMap = new Map<string, number>(
       roomIds.map((id, index) => [id, onlineCounts[index]]),
     );

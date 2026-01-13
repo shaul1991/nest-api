@@ -1,8 +1,4 @@
-import {
-  Injectable,
-  BadRequestException,
-  Logger,
-} from '@nestjs/common';
+import { Injectable, BadRequestException, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { randomBytes } from 'crypto';
@@ -24,7 +20,9 @@ export class EmailVerificationService {
   async sendVerificationEmail(email: string): Promise<void> {
     const user = await this.usersService.findByEmail(email);
     if (!user) {
-      this.logger.warn(`Verification email requested for non-existent user: ${email}`);
+      this.logger.warn(
+        `Verification email requested for non-existent user: ${email}`,
+      );
       return;
     }
 

@@ -27,8 +27,7 @@ export class CreateUserDto {
   @MinLength(8)
   @MaxLength(32)
   @Matches(/^(?=.*[a-zA-Z])(?=.*\d)(?=.*[@$!%*?&])/, {
-    message:
-      '비밀번호는 영문, 숫자, 특수문자(@$!%*?&)를 포함해야 합니다',
+    message: '비밀번호는 영문, 숫자, 특수문자(@$!%*?&)를 포함해야 합니다',
   })
   password: string;
 
