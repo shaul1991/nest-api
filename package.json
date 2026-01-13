@@ -30,11 +30,13 @@
     "migration:show": "typeorm-ts-node-commonjs migration:show -d src/config/typeorm.datasource.ts"
   },
   "dependencies": {
+    "@elastic/elasticsearch": "^9.2.0",
     "@keyv/redis": "^5.1.5",
     "@nestjs/cache-manager": "^3.1.0",
     "@nestjs/common": "^11.0.1",
     "@nestjs/config": "^4.0.2",
     "@nestjs/core": "^11.0.1",
+    "@nestjs/elasticsearch": "^11.1.0",
     "@nestjs/jwt": "^11.0.2",
     "@nestjs/passport": "^11.0.5",
     "@nestjs/platform-express": "^11.0.1",

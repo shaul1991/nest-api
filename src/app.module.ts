@@ -16,6 +16,7 @@ import { PostsModule } from './posts/posts.module';
 import { CommentsModule } from './comments/comments.module';
 import { LikesModule } from './likes/likes.module';
 import { AnalyticsModule } from './analytics/analytics.module';
+import { SearchModule } from './search/search.module';
 import { JwtAuthGuard } from './auth/guards/jwt-auth.guard';
 import { RolesGuard } from './auth/guards/roles.guard';
 import { validate } from './config/env.validation';
@@ -24,6 +25,7 @@ import redisConfig from './config/redis.config';
 import authConfig from './config/auth.config';
 import storageConfig from './config/storage.config';
 import corsConfig from './config/cors.config';
+import elasticsearchConfig from './config/elasticsearch.config';
 
 @Module({
   imports: [
@@ -36,6 +38,7 @@ import corsConfig from './config/cors.config';
         authConfig,
         storageConfig,
         corsConfig,
+        elasticsearchConfig,
       ],
     }),
     TypeOrmModule.forRootAsync({
@@ -87,6 +90,7 @@ import corsConfig from './config/cors.config';
     CommentsModule,
     LikesModule,
     AnalyticsModule,
+    SearchModule,
   ],
   controllers: [AppController],
   providers: [
