@@ -9,6 +9,7 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 import { CacheModule, CACHE_MANAGER } from '@nestjs/cache-manager';
 import { APP_GUARD } from '@nestjs/core';
 import * as bcrypt from 'bcrypt';
+import * as crypto from 'crypto';
 import { AuthModule } from '../src/auth/auth.module';
 import { UsersModule } from '../src/users/users.module';
 import { User } from '../src/users/entities/user.entity';
@@ -17,6 +18,11 @@ import { Permission } from '../src/users/entities/permission.entity';
 import { JwtAuthGuard } from '../src/auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../src/auth/guards/roles.guard';
 import { RoleType } from '../src/users/enums/role.enum';
+
+// Helper to hash refresh token (same as AuthService.hashRefreshToken)
+const hashRefreshToken = (token: string): string => {
+  return crypto.createHash('sha256').update(token).digest('hex');
+};
 
 describe('Auth Module (e2e)', () => {
   let app: INestApplication<App>;
@@ -308,10 +314,10 @@ describe('Auth Module (e2e)', () => {
     beforeEach(async () => {
       user = await createMockUser();
       refreshToken = generateRefreshToken(user);
-      // 리프레시 토큰을 캐시에 저장
+      // 리프레시 토큰을 해시하여 캐시에 저장 (AuthService와 동일한 방식)
       await cacheManager.set(
         `refresh_token:${user.id}`,
-        refreshToken,
+        hashRefreshToken(refreshToken),
         7 * 24 * 60 * 60 * 1000,
       );
     });
