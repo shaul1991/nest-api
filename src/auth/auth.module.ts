@@ -47,7 +47,7 @@ import authConfig from '../config/auth.config';
     AuthService,
     OAuthService,
     EmailVerificationService,
-    forwardRef(() => PasswordResetService),
+    PasswordResetService,
     LocalStrategy,
     JwtStrategy,
     JwtRefreshStrategy,

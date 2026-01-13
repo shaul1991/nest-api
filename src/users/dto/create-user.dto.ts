@@ -18,7 +18,7 @@ export class CreateUserDto {
   email: string;
 
   @ApiProperty({
-    description: '비밀번호 (최소 8자, 대소문자/숫자/특수문자 포함)',
+    description: '비밀번호 (최소 8자, 영문/숫자/특수문자 포함)',
     example: '********',
     minLength: 8,
     maxLength: 32,
@@ -26,9 +26,9 @@ export class CreateUserDto {
   @IsString()
   @MinLength(8)
   @MaxLength(32)
-  @Matches(/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]/, {
+  @Matches(/^(?=.*[a-zA-Z])(?=.*\d)(?=.*[@$!%*?&])/, {
     message:
-      'Password must contain at least one uppercase, one lowercase, one number and one special character',
+      '비밀번호는 영문, 숫자, 특수문자(@$!%*?&)를 포함해야 합니다',
   })
   password: string;
 

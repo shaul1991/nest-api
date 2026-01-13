@@ -11,7 +11,7 @@ import {
   Res,
   Req,
 } from '@nestjs/common';
-import { Response, Request } from 'express';
+import type { Response, Request } from 'express';
 import { ConfigService } from '@nestjs/config';
 import {
   ApiTags,
@@ -32,6 +32,8 @@ import { LocalAuthGuard } from './guards/local-auth.guard';
 import { JwtRefreshGuard } from './guards/jwt-refresh.guard';
 import { GoogleAuthGuard } from './guards/google-auth.guard';
 import { KakaoAuthGuard } from './guards/kakao-auth.guard';
+import { GoogleProfile } from './strategies/google.strategy';
+import { KakaoProfile } from './strategies/kakao.strategy';
 import { Public } from './decorators/public.decorator';
 import { CurrentUser } from './decorators/current-user.decorator';
 import { CreateUserDto } from '../users/dto/create-user.dto';
@@ -167,7 +169,7 @@ export class AuthController {
     description: '사용자 정보',
     type: UserResponseDto,
   })
-  async getMe(@CurrentUser() user: User): Promise<User> {
+  getMe(@CurrentUser() user: User): User {
     return user;
   }
 
@@ -221,7 +223,7 @@ export class AuthController {
     @Res() res: Response,
   ): Promise<void> {
     const { user, isNewUser } = await this.oauthService.findOrCreateGoogleUser(
-      req.user as any,
+      req.user as GoogleProfile & { accessToken: string; refreshToken: string },
     );
     const tokens = await this.authService.login(user);
     this.setRefreshTokenCookie(res, tokens.refreshToken);
@@ -255,7 +257,7 @@ export class AuthController {
     @Res() res: Response,
   ): Promise<void> {
     const { user, isNewUser } = await this.oauthService.findOrCreateKakaoUser(
-      req.user as any,
+      req.user as KakaoProfile & { accessToken: string; refreshToken: string },
     );
     const tokens = await this.authService.login(user);
     this.setRefreshTokenCookie(res, tokens.refreshToken);
