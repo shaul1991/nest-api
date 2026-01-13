@@ -36,5 +36,9 @@ npm-debug.log*
 # Blue-Green deployment state
 .active-slot-*
 
+# Claude Code
+.claude/
+.claude-plugin/
+
 # Misc
 *.tsbuildinfo

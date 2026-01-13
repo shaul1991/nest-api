@@ -1,7 +1,0 @@
-{
-  "name": "nest-api-commands",
-  "description": "NestJS API 프로젝트 커스텀 명령어",
-  "author": {
-    "name": "Developer"
-  }
-}
