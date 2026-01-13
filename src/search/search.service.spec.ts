@@ -34,7 +34,6 @@ describe('SearchService', () => {
     }).compile();
 
     service = module.get<SearchService>(SearchService);
-    module.get(ElasticsearchService);
   });
 
   afterEach(() => {
@@ -143,6 +142,54 @@ describe('SearchService', () => {
         }),
       );
     });
+
+    it('should calculate pagination correctly', async () => {
+      mockElasticsearchService.search.mockResolvedValue({
+        hits: { total: { value: 50 }, hits: [] },
+      });
+
+      const dto: SearchRequestDto = {
+        query: 'Test',
+        page: 2,
+        limit: 10,
+      };
+
+      const result = await service.search(dto);
+
+      expect(mockElasticsearchService.search).toHaveBeenCalledWith(
+        expect.objectContaining({
+          from: 10,
+          size: 10,
+        }),
+      );
+      expect(result.totalPages).toBe(5);
+      expect(result.page).toBe(2);
+    });
+
+    it('should apply type filter when type is not all', async () => {
+      mockElasticsearchService.search.mockResolvedValue({
+        hits: { total: { value: 0 }, hits: [] },
+      });
+
+      const dto: SearchRequestDto = {
+        query: 'Test',
+        type: SearchType.POST,
+        page: 1,
+        limit: 20,
+      };
+
+      await service.search(dto);
+
+      expect(mockElasticsearchService.search).toHaveBeenCalledWith(
+        expect.objectContaining({
+          query: expect.objectContaining({
+            bool: expect.objectContaining({
+              filter: [{ term: { type: 'post' } }],
+            }),
+          }),
+        }),
+      );
+    });
   });
 
   describe('suggest', () => {
@@ -165,6 +212,24 @@ describe('SearchService', () => {
 
     it('should return empty for short query', async () => {
       const result = await service.suggest('R');
+
+      expect(result.suggestions).toHaveLength(0);
+    });
+
+    it('should return empty on error', async () => {
+      mockElasticsearchService.search.mockRejectedValue(
+        new Error('ES Suggest Error'),
+      );
+
+      const result = await service.suggest('React');
+
+      expect(result.suggestions).toHaveLength(0);
+      expect(result.recentSearches).toHaveLength(0);
+      expect(result.trendingSearches).toHaveLength(0);
+    });
+
+    it('should return empty for null query', async () => {
+      const result = await service.suggest(null as unknown as string);
 
       expect(result.suggestions).toHaveLength(0);
     });
