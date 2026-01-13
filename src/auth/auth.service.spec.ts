@@ -4,6 +4,7 @@ import { ConfigService } from '@nestjs/config';
 import { CACHE_MANAGER } from '@nestjs/cache-manager';
 import { UnauthorizedException } from '@nestjs/common';
 import * as bcrypt from 'bcrypt';
+import * as crypto from 'crypto';
 import { AuthService } from './auth.service';
 import { UsersService } from '../users/users.service';
 import { User } from '../users/entities/user.entity';
@@ -11,6 +12,11 @@ import { Role } from '../users/entities/role.entity';
 import { AUTH_ERRORS } from '../common/constants/auth.constants';
 
 jest.mock('bcrypt');
+
+// Helper to hash refresh token (same as AuthService.hashRefreshToken)
+const hashRefreshToken = (token: string): string => {
+  return crypto.createHash('sha256').update(token).digest('hex');
+};
 
 describe('AuthService', () => {
   let authService: AuthService;
@@ -233,7 +239,7 @@ describe('AuthService', () => {
       expect(usersService.updateLastLogin).toHaveBeenCalledWith(mockUser.id);
       expect(cacheManager.set).toHaveBeenCalledWith(
         `refresh_token:${mockUser.id}`,
-        refreshToken,
+        hashRefreshToken(refreshToken),
         7 * 24 * 60 * 60 * 1000,
       );
     });
@@ -279,7 +285,7 @@ describe('AuthService', () => {
       const newAccessToken = 'new-access-token';
       const newRefreshToken = 'new-refresh-token';
 
-      cacheManager.get.mockResolvedValue(refreshToken);
+      cacheManager.get.mockResolvedValue(hashRefreshToken(refreshToken));
       usersService.findById.mockResolvedValue(mockUser);
       cacheManager.del.mockResolvedValue(undefined);
       jwtService.signAsync
@@ -318,7 +324,7 @@ describe('AuthService', () => {
     });
 
     it('비활성 사용자에 대해 예외를 던져야 함', async () => {
-      cacheManager.get.mockResolvedValue(refreshToken);
+      cacheManager.get.mockResolvedValue(hashRefreshToken(refreshToken));
       usersService.findById.mockResolvedValue(mockInactiveUser);
 
       await expect(
@@ -327,7 +333,7 @@ describe('AuthService', () => {
     });
 
     it('사용자가 존재하지 않으면 예외를 던져야 함', async () => {
-      cacheManager.get.mockResolvedValue(refreshToken);
+      cacheManager.get.mockResolvedValue(hashRefreshToken(refreshToken));
       usersService.findById.mockResolvedValue(null);
 
       await expect(
