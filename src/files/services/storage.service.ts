@@ -3,6 +3,8 @@ import { ConfigService } from '@nestjs/config';
 import * as Minio from 'minio';
 import { Readable } from 'stream';
 import { UploadResult } from '../interfaces/file-metadata.interface';
+import * as dotenv from 'dotenv';
+import * as fs from 'fs';
 
 @Injectable()
 export class StorageService implements OnModuleInit {
@@ -11,11 +13,17 @@ export class StorageService implements OnModuleInit {
   private defaultBucket: string;
 
   constructor(private readonly configService: ConfigService) {
+    const endpoint = this.configService.get<string>('storage.endpoint') || 'localhost';
+    const port = this.configService.get<number>('storage.port') || 9000;
+
+    // ConfigModule이 process.env를 덮어쓰므로 .env 파일에서 직접 읽기
+    const envFile = fs.existsSync('.env') ? dotenv.parse(fs.readFileSync('.env')) : {};
+    const useSSL = envFile.MINIO_USE_SSL === 'true';
+
     this.client = new Minio.Client({
-      endPoint:
-        this.configService.get<string>('storage.endpoint') || 'localhost',
-      port: this.configService.get<number>('storage.port') || 9000,
-      useSSL: this.configService.get<boolean>('storage.useSSL') ?? false,
+      endPoint: endpoint,
+      port: port,
+      useSSL: useSSL,
       accessKey: this.configService.get<string>('storage.accessKey') || '',
       secretKey: this.configService.get<string>('storage.secretKey') || '',
     });

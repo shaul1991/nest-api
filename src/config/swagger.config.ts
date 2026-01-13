@@ -6,7 +6,7 @@ export function setupSwagger(app: INestApplication): void {
     .setTitle('NestJS API')
     .setDescription('NestJS 기반 API 서버 문서')
     .setVersion('1.0.0')
-    .addServer('http://localhost:3000', 'Local')
+    .addServer('http://localhost:3001', 'Local')
     .addServer('https://dev-api-nest.shaul.link', 'Development')
     .addBearerAuth(
       {

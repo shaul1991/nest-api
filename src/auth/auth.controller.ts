@@ -79,7 +79,8 @@ export class AuthController {
   @ApiConflictResponse({ description: '이미 존재하는 이메일' })
   async register(@Body() createUserDto: CreateUserDto): Promise<User> {
     const user = await this.authService.register(createUserDto);
-    await this.emailVerificationService.sendVerificationEmail(user.email);
+    // TODO: 로컬 개발 시 이메일 발송 비활성화
+    // await this.emailVerificationService.sendVerificationEmail(user.email);
     return user;
   }
 
