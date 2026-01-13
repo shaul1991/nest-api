@@ -3,6 +3,17 @@
 ## 프로젝트 개요
 NestJS 기반 API 서버로, Blue-Green 무중단 배포를 지원합니다.
 
+## 개발 규칙
+
+### 테스트 코드 작성
+- 버그 수정 시 해당 버그를 검증하는 테스트 코드를 반드시 추가
+- 새로운 기능 추가 시 관련 테스트 코드를 함께 작성
+- 테스트는 `npm run test`로 실행
+
+### 로컬 테스트 환경
+- local 환경에서의 테스트는 로컬 컴퓨터의 Ollama를 사용
+- Ollama 엔드포인트: `http://localhost:11434`
+
 ## 환경
 - **개발 서버**: https://dev-api-nest.shaul.link (develop 브랜치)
 - **운영 서버**: https://api-nest.shaul.link (release 브랜치)

@@ -293,11 +293,42 @@ export class FilesService {
     return lastDot !== -1 ? filename.slice(lastDot).toLowerCase() : '';
   }
 
+  /**
+   * multer/busboy의 latin1 디코딩 문제를 복원합니다.
+   * busboy의 defParamCharset 기본값이 'latin1'이라 UTF-8 파일명이 깨집니다.
+   * @see https://github.com/expressjs/multer/issues/1104
+   */
+  private decodeMulterFilename(filename: string): string {
+    try {
+      // Latin1 범위(0x00-0xFF)를 벗어나는 문자가 있으면 이미 올바른 UTF-8
+      for (const char of filename) {
+        if (char.charCodeAt(0) > 255) {
+          return filename;
+        }
+      }
+
+      const decoded = Buffer.from(filename, 'latin1').toString('utf8');
+
+      // 대체 문자(U+FFFD)가 포함되면 변환 실패로 판단
+      if (decoded.includes('\ufffd')) {
+        return filename;
+      }
+
+      return decoded;
+    } catch {
+      return filename;
+    }
+  }
+
   private sanitizeFilename(filename: string): string {
-    const basename = path.basename(filename);
+    // Decode multer's latin1 interpreted UTF-8 filename
+    const decoded = this.decodeMulterFilename(filename);
+    const basename = path.basename(decoded);
+    // Unicode NFC normalization for macOS compatibility
+    const normalized = basename.normalize('NFC');
     // Control characters must be removed for security
     // eslint-disable-next-line no-control-regex
-    const sanitized = basename.replace(/[<>:"/\\|?*\x00-\x1f]/g, '_');
+    const sanitized = normalized.replace(/[<>:"/\\|?*\x00-\x1f]/g, '_');
     return sanitized.slice(0, 255);
   }
 
