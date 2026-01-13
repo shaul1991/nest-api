@@ -1,6 +1,13 @@
 import { MigrationInterface, QueryRunner, TableIndex } from 'typeorm';
 
 /**
+ * 인덱스 존재 여부 쿼리 결과 타입
+ */
+interface IndexExistsResult {
+  exists: boolean;
+}
+
+/**
  * Posts/Comments 테이블 인덱스 추가 마이그레이션
  *
  * DBA-MVP-003: 기본 인덱스 설정
@@ -102,13 +109,13 @@ export class AddPostsCommentsIndexes1705200000002 implements MigrationInterface 
     tableName: string,
     indexName: string,
   ): Promise<boolean> {
-    const result = await queryRunner.query(
+    const result = (await queryRunner.query(
       `SELECT EXISTS (
         SELECT 1 FROM pg_indexes
         WHERE tablename = $1 AND indexname = $2
       ) as exists`,
       [tableName, indexName.toLowerCase()],
-    );
+    )) as IndexExistsResult[];
     return result[0]?.exists === true;
   }
 }

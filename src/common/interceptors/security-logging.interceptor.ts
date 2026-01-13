@@ -9,7 +9,7 @@ import {
 } from '@nestjs/common';
 import { Observable, throwError } from 'rxjs';
 import { tap, catchError } from 'rxjs/operators';
-import type { Request } from 'express';
+import type { Request, Response } from 'express';
 
 /**
  * 보안 이벤트 타입
@@ -81,8 +81,8 @@ export class SecurityLoggingInterceptor implements NestInterceptor {
 
     return next.handle().pipe(
       tap((data) => {
-        const statusCode =
-          context.switchToHttp().getResponse().statusCode || 200;
+        const response = context.switchToHttp().getResponse<Response>();
+        const statusCode = response.statusCode ?? 200;
 
         // 인증 성공 로깅 (로그인, 토큰 갱신 등)
         if (
@@ -107,14 +107,16 @@ export class SecurityLoggingInterceptor implements NestInterceptor {
           this.resetFailedAttempts(clientIp);
         }
       }),
-      catchError((error) => {
+      catchError((error: unknown) => {
+        const typedError =
+          error instanceof Error ? error : new Error(String(error));
         const statusCode =
           error instanceof HttpException
             ? error.getStatus()
             : HttpStatus.INTERNAL_SERVER_ERROR;
 
         // 에러 유형에 따른 이벤트 타입 결정
-        const eventType = this.determineEventType(statusCode, error);
+        const eventType = this.determineEventType(statusCode, typedError);
 
         // 실패 추적 및 의심 활동 감지
         const suspiciousActivity = this.trackFailedAttempt(clientIp);
@@ -128,10 +130,10 @@ export class SecurityLoggingInterceptor implements NestInterceptor {
           statusCode,
           userId: this.extractUserId(request),
           email: this.maskEmail(this.extractEmail(request)),
-          message: this.sanitizeErrorMessage(error),
+          message: this.sanitizeErrorMessage(typedError),
           metadata: {
             responseTime: Date.now() - startTime,
-            errorName: error?.name,
+            errorName: typedError.name,
             ...(suspiciousActivity && {
               failedAttempts: failedAttempts.get(clientIp)?.count,
               alert: 'Multiple failed attempts detected',
@@ -179,7 +181,7 @@ export class SecurityLoggingInterceptor implements NestInterceptor {
   ): SecurityEventType {
     const errorMessage = error?.message?.toLowerCase() || '';
 
-    if (statusCode === HttpStatus.UNAUTHORIZED) {
+    if (statusCode === (HttpStatus.UNAUTHORIZED as number)) {
       if (errorMessage.includes('expired')) {
         return SecurityEventType.TOKEN_EXPIRED;
       }
@@ -189,15 +191,15 @@ export class SecurityLoggingInterceptor implements NestInterceptor {
       return SecurityEventType.AUTH_FAILURE;
     }
 
-    if (statusCode === HttpStatus.FORBIDDEN) {
+    if (statusCode === (HttpStatus.FORBIDDEN as number)) {
       return SecurityEventType.ACCESS_DENIED;
     }
 
-    if (statusCode === HttpStatus.TOO_MANY_REQUESTS) {
+    if (statusCode === (HttpStatus.TOO_MANY_REQUESTS as number)) {
       return SecurityEventType.RATE_LIMIT_EXCEEDED;
     }
 
-    if (statusCode === HttpStatus.BAD_REQUEST) {
+    if (statusCode === (HttpStatus.BAD_REQUEST as number)) {
       return SecurityEventType.INVALID_INPUT;
     }
 
@@ -312,7 +314,12 @@ export class SecurityLoggingInterceptor implements NestInterceptor {
     // 로그인 응답에서 추출
     if (responseData && typeof responseData === 'object') {
       const data = responseData as Record<string, unknown>;
-      if (data.userId) return String(data.userId);
+      if (data.userId && typeof data.userId === 'string') {
+        return data.userId;
+      }
+      if (data.userId && typeof data.userId === 'number') {
+        return data.userId.toString();
+      }
     }
 
     return undefined;

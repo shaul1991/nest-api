@@ -1,11 +1,34 @@
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository, Between } from 'typeorm';
+import { Repository } from 'typeorm';
 import {
   UserActivityLog,
   EventType,
 } from './entities/user-activity-log.entity';
 import { CreateActivityLogDto } from './dto/create-activity-log.dto';
+
+/**
+ * DAU/MAU 쿼리 결과 타입
+ */
+interface CountQueryResult {
+  count: string;
+}
+
+/**
+ * 일일 활성 사용자 추이 쿼리 결과 타입
+ */
+interface DailyActiveUsersResult {
+  date: string;
+  count: string;
+}
+
+/**
+ * 이벤트 타입별 집계 쿼리 결과 타입
+ */
+interface EventTypeStatsResult {
+  eventType: EventType;
+  count: string;
+}
 
 /**
  * 분석 서비스
@@ -65,9 +88,9 @@ export class AnalyticsService {
         end: endOfDay,
       })
       .andWhere('log.user_id IS NOT NULL')
-      .getRawOne();
+      .getRawOne<CountQueryResult>();
 
-    return parseInt(result?.count || '0', 10);
+    return parseInt(result?.count ?? '0', 10);
   }
 
   /**
@@ -87,9 +110,9 @@ export class AnalyticsService {
         end: endOfMonth,
       })
       .andWhere('log.user_id IS NOT NULL')
-      .getRawOne();
+      .getRawOne<CountQueryResult>();
 
-    return parseInt(result?.count || '0', 10);
+    return parseInt(result?.count ?? '0', 10);
   }
 
   /**
@@ -110,7 +133,7 @@ export class AnalyticsService {
       .andWhere('log.user_id IS NOT NULL')
       .groupBy("TO_CHAR(log.created_at, 'YYYY-MM-DD')")
       .orderBy('date', 'ASC')
-      .getRawMany();
+      .getRawMany<DailyActiveUsersResult>();
 
     return result.map((row) => ({
       date: row.date,
@@ -135,10 +158,10 @@ export class AnalyticsService {
       .where('log.created_at BETWEEN :start AND :end', { start, end })
       .groupBy('log.event_type')
       .orderBy('count', 'DESC')
-      .getRawMany();
+      .getRawMany<EventTypeStatsResult>();
 
     return result.map((row) => ({
-      eventType: row.eventType as EventType,
+      eventType: row.eventType,
       count: parseInt(row.count, 10),
     }));
   }
