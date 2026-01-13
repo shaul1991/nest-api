@@ -16,6 +16,12 @@ import { PostIndexService } from './services/post-index.service';
           'elasticsearch.requestTimeout',
         ),
         pingTimeout: configService.get<number>('elasticsearch.pingTimeout'),
+        // ES 9.x client compatibility with ES 8.x server
+        headers: {
+          accept: 'application/vnd.elasticsearch+json; compatible-with=8',
+          'content-type':
+            'application/vnd.elasticsearch+json; compatible-with=8',
+        },
       }),
       inject: [ConfigService],
     }),
