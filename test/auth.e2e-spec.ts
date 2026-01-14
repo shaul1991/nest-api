@@ -369,7 +369,7 @@ describe('Auth Module (e2e)', () => {
         .set('Authorization', `Bearer ${accessToken}`)
         .expect(200);
 
-      expect(response.body.message).toBe('Logged out successfully');
+      expect(response.body.message).toBe('로그아웃되었습니다.');
     });
 
     it('인증되지 않음 (401) - 토큰 없이 로그아웃 시도', async () => {
@@ -458,7 +458,7 @@ describe('Auth Module (e2e)', () => {
         })
         .expect(200);
 
-      expect(response.body.message).toBe('Password changed successfully');
+      expect(response.body.message).toBe('비밀번호가 변경되었습니다.');
     });
 
     it('인증되지 않음 (401) - 현재 비밀번호가 틀림', async () => {
