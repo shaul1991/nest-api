@@ -10,6 +10,24 @@ import { CacheModule, CACHE_MANAGER } from '@nestjs/cache-manager';
 import { APP_GUARD } from '@nestjs/core';
 import * as bcrypt from 'bcrypt';
 import * as crypto from 'crypto';
+
+// Set environment variables for testing (must be before imports that use them)
+process.env.JWT_SECRET =
+  process.env.JWT_SECRET || 'test-jwt-secret-key-for-e2e-minimum-32-chars';
+process.env.JWT_REFRESH_SECRET =
+  process.env.JWT_REFRESH_SECRET ||
+  'test-jwt-refresh-secret-key-for-e2e-32-chars';
+process.env.GOOGLE_CLIENT_ID = process.env.GOOGLE_CLIENT_ID || 'test-google-id';
+process.env.GOOGLE_CLIENT_SECRET =
+  process.env.GOOGLE_CLIENT_SECRET || 'test-google-secret';
+process.env.GOOGLE_CALLBACK_URL =
+  process.env.GOOGLE_CALLBACK_URL || 'http://localhost:3000/auth/google';
+process.env.KAKAO_CLIENT_ID = process.env.KAKAO_CLIENT_ID || 'test-kakao-id';
+process.env.KAKAO_CLIENT_SECRET =
+  process.env.KAKAO_CLIENT_SECRET || 'test-kakao-secret';
+process.env.KAKAO_CALLBACK_URL =
+  process.env.KAKAO_CALLBACK_URL || 'http://localhost:3000/auth/kakao';
+
 import { AuthModule } from '../src/auth/auth.module';
 import { UsersModule } from '../src/users/users.module';
 import { User } from '../src/users/entities/user.entity';
