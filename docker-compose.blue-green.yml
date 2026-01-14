@@ -35,6 +35,11 @@ services:
       - BCRYPT_SALT_ROUNDS=${BCRYPT_SALT_ROUNDS:-12}
       - AUTH_RATE_LIMIT_TTL=${AUTH_RATE_LIMIT_TTL:-60}
       - AUTH_RATE_LIMIT_MAX=${AUTH_RATE_LIMIT_MAX:-10}
+      - CORS_ORIGIN=${CORS_ORIGIN}
+      - GITHUB_CLIENT_ID=${GITHUB_CLIENT_ID}
+      - GITHUB_CLIENT_SECRET=${GITHUB_CLIENT_SECRET}
+      - GITHUB_CALLBACK_URL=${GITHUB_CALLBACK_URL}
+      - FRONTEND_URL=${FRONTEND_URL}
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:3000/health/live"]
       interval: 10s
@@ -72,6 +77,11 @@ services:
       - BCRYPT_SALT_ROUNDS=${BCRYPT_SALT_ROUNDS:-12}
       - AUTH_RATE_LIMIT_TTL=${AUTH_RATE_LIMIT_TTL:-60}
       - AUTH_RATE_LIMIT_MAX=${AUTH_RATE_LIMIT_MAX:-10}
+      - CORS_ORIGIN=${CORS_ORIGIN}
+      - GITHUB_CLIENT_ID=${GITHUB_CLIENT_ID}
+      - GITHUB_CLIENT_SECRET=${GITHUB_CLIENT_SECRET}
+      - GITHUB_CALLBACK_URL=${GITHUB_CALLBACK_URL}
+      - FRONTEND_URL=${FRONTEND_URL}
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:3000/health/live"]
       interval: 10s
