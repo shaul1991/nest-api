@@ -15,7 +15,7 @@ pipeline {
                     branches: [[name: '*/develop']],
                     userRemoteConfigs: [[
                         url: 'git@github.com:shaul1991/nest-api.git',
-                        credentialsId: 'github-ssh-key'
+                        credentialsId: 'home-server-deploy'
                     ]]
                 ])
             }
