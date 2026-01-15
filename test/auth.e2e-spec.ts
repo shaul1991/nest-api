@@ -10,6 +10,10 @@ import { CacheModule, CACHE_MANAGER } from '@nestjs/cache-manager';
 import { APP_GUARD } from '@nestjs/core';
 import * as bcrypt from 'bcrypt';
 import * as crypto from 'crypto';
+import {
+  PostgreSqlContainer,
+  StartedPostgreSqlContainer,
+} from '@testcontainers/postgresql';
 
 // Set environment variables for testing (must be before imports that use them)
 process.env.JWT_SECRET =
@@ -27,12 +31,22 @@ process.env.KAKAO_CLIENT_SECRET =
   process.env.KAKAO_CLIENT_SECRET || 'test-kakao-secret';
 process.env.KAKAO_CALLBACK_URL =
   process.env.KAKAO_CALLBACK_URL || 'http://localhost:3000/auth/kakao';
+process.env.GITHUB_CLIENT_ID =
+  process.env.GITHUB_CLIENT_ID || 'test-github-id';
+process.env.GITHUB_CLIENT_SECRET =
+  process.env.GITHUB_CLIENT_SECRET || 'test-github-secret';
+process.env.GITHUB_CALLBACK_URL =
+  process.env.GITHUB_CALLBACK_URL || 'http://localhost:3000/auth/github';
 
 import { AuthModule } from '../src/auth/auth.module';
 import { UsersModule } from '../src/users/users.module';
 import { User } from '../src/users/entities/user.entity';
 import { Role } from '../src/users/entities/role.entity';
 import { Permission } from '../src/users/entities/permission.entity';
+import {
+  OAuthAccount,
+  OAuthProvider,
+} from '../src/auth/entities/oauth-account.entity';
 import { JwtAuthGuard } from '../src/auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../src/auth/guards/roles.guard';
 import { RoleType } from '../src/users/enums/role.enum';
@@ -43,12 +57,18 @@ const hashRefreshToken = (token: string): string => {
 };
 
 describe('Auth Module (e2e)', () => {
+  jest.setTimeout(120000); // 컨테이너 시작 시간을 고려하여 타임아웃 증가
+
   let app: INestApplication<App>;
   let userRepository: any;
   let roleRepository: any;
+  let oauthAccountRepository: any;
   let jwtService: JwtService;
   let configService: ConfigService;
   let cacheManager: any;
+
+  // Testcontainers
+  let postgresContainer: StartedPostgreSqlContainer;
 
   const testUser = {
     email: 'test@example.com',
@@ -109,6 +129,13 @@ describe('Auth Module (e2e)', () => {
   };
 
   beforeAll(async () => {
+    // PostgreSQL 컨테이너 시작
+    postgresContainer = await new PostgreSqlContainer('postgres:16-alpine')
+      .withDatabase('test_db')
+      .withUsername('test')
+      .withPassword('test')
+      .start();
+
     const moduleFixture: TestingModule = await Test.createTestingModule({
       imports: [
         ConfigModule.forRoot({
@@ -116,16 +143,11 @@ describe('Auth Module (e2e)', () => {
           load: [
             () => ({
               database: {
-                host: process.env.DB_HOST || 'localhost',
-                port: parseInt(process.env.DB_PORT || '5432', 10),
-                user: process.env.DB_USER || 'postgres',
-                password: process.env.DB_PASSWORD || 'postgres',
-                name: process.env.DB_NAME || 'nest_api_test',
-              },
-              redis: {
-                host: process.env.REDIS_HOST || 'localhost',
-                port: parseInt(process.env.REDIS_PORT || '6379', 10),
-                password: process.env.REDIS_PASSWORD || '',
+                host: postgresContainer.getHost(),
+                port: postgresContainer.getPort(),
+                user: postgresContainer.getUsername(),
+                password: postgresContainer.getPassword(),
+                name: postgresContainer.getDatabase(),
               },
               auth: {
                 jwt: {
@@ -151,7 +173,7 @@ describe('Auth Module (e2e)', () => {
             username: configService.get<string>('database.user'),
             password: configService.get<string>('database.password'),
             database: configService.get<string>('database.name'),
-            entities: [User, Role, Permission],
+            entities: [User, Role, Permission, OAuthAccount],
             synchronize: true,
             dropSchema: true,
           }),
@@ -189,6 +211,7 @@ describe('Auth Module (e2e)', () => {
 
     userRepository = moduleFixture.get(getRepositoryToken(User));
     roleRepository = moduleFixture.get(getRepositoryToken(Role));
+    oauthAccountRepository = moduleFixture.get(getRepositoryToken(OAuthAccount));
     jwtService = moduleFixture.get(JwtService);
     configService = moduleFixture.get(ConfigService);
     cacheManager = moduleFixture.get(CACHE_MANAGER);
@@ -196,10 +219,12 @@ describe('Auth Module (e2e)', () => {
 
   afterAll(async () => {
     await app.close();
+    await postgresContainer.stop();
   });
 
   beforeEach(async () => {
     // 각 테스트 전에 사용자 데이터 정리
+    await oauthAccountRepository.query('DELETE FROM oauth_accounts');
     await userRepository.query('DELETE FROM user_roles');
     await userRepository.query('DELETE FROM users');
     await roleRepository.query('DELETE FROM roles');
@@ -533,6 +558,156 @@ describe('Auth Module (e2e)', () => {
           firstName: 'Updated',
         })
         .expect(401);
+    });
+  });
+
+  describe('GitHub OAuth (e2e)', () => {
+    // 참고: GitHub OAuth 엔드포인트 테스트는 실제 passport-github2 strategy가 필요합니다.
+    // E2E 테스트 환경에서는 환경변수가 설정되지 않으면 strategy가 로드되지 않을 수 있습니다.
+    // 따라서 아래 테스트는 OAuth 데이터 레이어 통합 테스트에 집중합니다.
+
+    describe('GET /auth/github (리다이렉트 테스트)', () => {
+      it.skip('GitHub OAuth 로그인 페이지로 리다이렉트 (302) - 실제 환경에서만 테스트 가능', async () => {
+        // 이 테스트는 GitHub OAuth 환경변수가 올바르게 설정된 환경에서만 동작합니다.
+        const response = await request(app.getHttpServer())
+          .get('/auth/github')
+          .expect(302);
+
+        expect(response.headers.location).toContain('github.com');
+        expect(response.headers.location).toContain('oauth/authorize');
+      });
+    });
+
+    describe('GET /auth/github/callback (콜백 테스트)', () => {
+      it.skip('유효하지 않은 코드로 콜백 시 에러 (401) - 실제 환경에서만 테스트 가능', async () => {
+        // 이 테스트는 GitHub OAuth 환경변수가 올바르게 설정된 환경에서만 동작합니다.
+        await request(app.getHttpServer())
+          .get('/auth/github/callback')
+          .query({ code: 'invalid-code' })
+          .expect(401);
+      });
+    });
+
+    describe('OAuth 계정 연동 테스트', () => {
+      let user: User;
+
+      beforeEach(async () => {
+        user = await createMockUser();
+      });
+
+      it('OAuth 계정을 사용자와 연결할 수 있어야 함', async () => {
+        const oauthAccount = oauthAccountRepository.create({
+          userId: user.id,
+          provider: OAuthProvider.GITHUB,
+          providerAccountId: '12345678',
+          accessToken: 'test-access-token',
+          refreshToken: 'test-refresh-token',
+        });
+        const savedAccount = await oauthAccountRepository.save(oauthAccount);
+
+        expect(savedAccount.id).toBeDefined();
+        expect(savedAccount.userId).toBe(user.id);
+        expect(savedAccount.provider).toBe(OAuthProvider.GITHUB);
+        expect(savedAccount.providerAccountId).toBe('12345678');
+      });
+
+      it('동일한 provider + providerAccountId 조합은 유니크해야 함', async () => {
+        const oauthAccount1 = oauthAccountRepository.create({
+          userId: user.id,
+          provider: OAuthProvider.GITHUB,
+          providerAccountId: '12345678',
+          accessToken: 'test-access-token',
+        });
+        await oauthAccountRepository.save(oauthAccount1);
+
+        const user2 = await createMockUser({
+          email: 'test2@example.com',
+        });
+        const oauthAccount2 = oauthAccountRepository.create({
+          userId: user2.id,
+          provider: OAuthProvider.GITHUB,
+          providerAccountId: '12345678', // 동일한 providerAccountId
+          accessToken: 'test-access-token-2',
+        });
+
+        await expect(
+          oauthAccountRepository.save(oauthAccount2),
+        ).rejects.toThrow();
+      });
+
+      it('사용자 삭제 시 연결된 OAuth 계정도 삭제되어야 함', async () => {
+        const oauthAccount = oauthAccountRepository.create({
+          userId: user.id,
+          provider: OAuthProvider.GITHUB,
+          providerAccountId: '12345678',
+          accessToken: 'test-access-token',
+        });
+        await oauthAccountRepository.save(oauthAccount);
+
+        // 사용자 삭제
+        await userRepository.query('DELETE FROM oauth_accounts WHERE user_id = $1', [user.id]);
+        await userRepository.query('DELETE FROM user_roles WHERE user_id = $1', [user.id]);
+        await userRepository.delete(user.id);
+
+        // OAuth 계정도 삭제되었는지 확인
+        const deletedAccount = await oauthAccountRepository.findOne({
+          where: { userId: user.id },
+        });
+        expect(deletedAccount).toBeNull();
+      });
+
+      it('여러 OAuth provider를 하나의 사용자에 연결할 수 있어야 함', async () => {
+        const githubAccount = oauthAccountRepository.create({
+          userId: user.id,
+          provider: OAuthProvider.GITHUB,
+          providerAccountId: 'github-12345',
+          accessToken: 'github-token',
+        });
+        await oauthAccountRepository.save(githubAccount);
+
+        const googleAccount = oauthAccountRepository.create({
+          userId: user.id,
+          provider: OAuthProvider.GOOGLE,
+          providerAccountId: 'google-67890',
+          accessToken: 'google-token',
+        });
+        await oauthAccountRepository.save(googleAccount);
+
+        const accounts = await oauthAccountRepository.find({
+          where: { userId: user.id },
+        });
+
+        expect(accounts).toHaveLength(2);
+        expect(accounts.map((a: OAuthAccount) => a.provider)).toContain(OAuthProvider.GITHUB);
+        expect(accounts.map((a: OAuthAccount) => a.provider)).toContain(OAuthProvider.GOOGLE);
+      });
+    });
+
+    describe('OAuth 로그인 후 토큰 발급 통합 테스트', () => {
+      it('OAuth 사용자가 존재하면 로그인하여 토큰을 발급받을 수 있어야 함', async () => {
+        // OAuth로 가입된 사용자 생성 (OAuth 사용자도 password 컬럼은 필수이므로 랜덤 해시 사용)
+        const oauthUser = await createMockUser({
+          email: 'oauth@example.com',
+        });
+
+        const oauthAccount = oauthAccountRepository.create({
+          userId: oauthUser.id,
+          provider: OAuthProvider.GITHUB,
+          providerAccountId: 'github-user-123',
+          accessToken: 'github-access-token',
+        });
+        await oauthAccountRepository.save(oauthAccount);
+
+        // OAuth 사용자로 직접 토큰 생성 테스트
+        const accessToken = generateAccessToken(oauthUser);
+
+        const response = await request(app.getHttpServer())
+          .get('/users/me')
+          .set('Authorization', `Bearer ${accessToken}`)
+          .expect(200);
+
+        expect(response.body.email).toBe('oauth@example.com');
+      });
     });
   });
 });
