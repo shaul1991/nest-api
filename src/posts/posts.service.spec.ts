@@ -5,10 +5,12 @@ import { NotFoundException, ForbiddenException } from '@nestjs/common';
 import { PostsService } from './posts.service';
 import { Post } from './entities/post.entity';
 import { User } from '../users/entities/user.entity';
+import { TagsService } from '../tags/tags.service';
 
 describe('PostsService', () => {
   let postsService: PostsService;
   let postRepository: jest.Mocked<Repository<Post>>;
+  let tagsService: jest.Mocked<TagsService>;
 
   const mockAuthor: Partial<User> = {
     id: 'author-uuid',
@@ -24,10 +26,13 @@ describe('PostsService', () => {
     authorId: 'author-uuid',
     viewCount: 0,
     likeCount: 0,
+    images: [],
+    referenceUrl: null,
     createdAt: new Date(),
     updatedAt: new Date(),
     author: mockAuthor as User,
     comments: [],
+    tags: [],
   };
 
   beforeEach(async () => {
@@ -40,6 +45,12 @@ describe('PostsService', () => {
       increment: jest.fn(),
     };
 
+    const mockTagsService = {
+      findOrCreateMany: jest.fn().mockResolvedValue([]),
+      incrementUseCount: jest.fn().mockResolvedValue(undefined),
+      decrementUseCount: jest.fn().mockResolvedValue(undefined),
+    };
+
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         PostsService,
@@ -47,11 +58,16 @@ describe('PostsService', () => {
           provide: getRepositoryToken(Post),
           useValue: mockPostRepository,
         },
+        {
+          provide: TagsService,
+          useValue: mockTagsService,
+        },
       ],
     }).compile();
 
     postsService = module.get<PostsService>(PostsService);
     postRepository = module.get(getRepositoryToken(Post));
+    tagsService = module.get(TagsService);
   });
 
   afterEach(() => {
@@ -105,7 +121,7 @@ describe('PostsService', () => {
       expect(result.meta.hasNextPage).toBe(false);
       expect(result.meta.hasPreviousPage).toBe(false);
       expect(postRepository.findAndCount).toHaveBeenCalledWith({
-        relations: ['author'],
+        relations: ['author', 'tags'],
         order: { createdAt: 'DESC' },
         skip: 0,
         take: 10,
@@ -120,7 +136,7 @@ describe('PostsService', () => {
       expect(result.meta.page).toBe(1);
       expect(result.meta.limit).toBe(10);
       expect(postRepository.findAndCount).toHaveBeenCalledWith({
-        relations: ['author'],
+        relations: ['author', 'tags'],
         order: { createdAt: 'DESC' },
         skip: 0,
         take: 10,
@@ -136,7 +152,7 @@ describe('PostsService', () => {
       expect(result.meta.hasNextPage).toBe(true);
       expect(result.meta.hasPreviousPage).toBe(true);
       expect(postRepository.findAndCount).toHaveBeenCalledWith({
-        relations: ['author'],
+        relations: ['author', 'tags'],
         order: { createdAt: 'DESC' },
         skip: 10,
         take: 10,
@@ -153,7 +169,7 @@ describe('PostsService', () => {
       expect(result).toEqual(mockPost);
       expect(postRepository.findOne).toHaveBeenCalledWith({
         where: { id: 'post-uuid' },
-        relations: ['author'],
+        relations: ['author', 'tags'],
       });
     });
 

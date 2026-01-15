@@ -10,19 +10,31 @@ import { CreatePostDto } from './dto/create-post.dto';
 import { UpdatePostDto } from './dto/update-post.dto';
 import { PostListQueryDto, PostSortType } from './dto/post-list-query.dto';
 import { PostListResponseDto } from './dto/post-list-response.dto';
+import { TagsService } from '../tags/tags.service';
 
 @Injectable()
 export class PostsService {
   constructor(
     @InjectRepository(Post)
     private readonly postRepository: Repository<Post>,
+    private readonly tagsService: TagsService,
   ) {}
 
   async create(createPostDto: CreatePostDto, authorId: string): Promise<Post> {
+    const { tags: tagNames, ...postData } = createPostDto;
+
     const post = this.postRepository.create({
-      ...createPostDto,
+      ...postData,
       authorId,
     });
+
+    // 태그 처리
+    if (tagNames && tagNames.length > 0) {
+      const tags = await this.tagsService.findOrCreateMany(tagNames);
+      post.tags = tags;
+      // 태그 사용 횟수 증가
+      await this.tagsService.incrementUseCount(tags.map((t) => t.id));
+    }
 
     return this.postRepository.save(post);
   }
@@ -56,7 +68,7 @@ export class PostsService {
     const order = this.getSortOrder(sort);
 
     const [posts, total] = await this.postRepository.findAndCount({
-      relations: ['author'],
+      relations: ['author', 'tags'],
       order,
       skip,
       take: limit,
@@ -97,7 +109,8 @@ export class PostsService {
     // 정렬 기준에 따른 조건 생성
     const queryBuilder = this.postRepository
       .createQueryBuilder('post')
-      .leftJoinAndSelect('post.author', 'author');
+      .leftJoinAndSelect('post.author', 'author')
+      .leftJoinAndSelect('post.tags', 'tags');
 
     // 정렬 방식에 따라 커서 조건 추가
     switch (sort) {
@@ -189,6 +202,9 @@ export class PostsService {
       authorId: post.authorId,
       viewCount: post.viewCount,
       likeCount: post.likeCount,
+      images: post.images || [],
+      referenceUrl: post.referenceUrl || null,
+      tags: post.tags ? post.tags.map((tag) => tag.name) : [],
       createdAt: post.createdAt,
       updatedAt: post.updatedAt,
       author: post.author
@@ -205,7 +221,7 @@ export class PostsService {
   async findById(id: string): Promise<Post | null> {
     return this.postRepository.findOne({
       where: { id },
-      relations: ['author'],
+      relations: ['author', 'tags'],
     });
   }
 
@@ -239,7 +255,28 @@ export class PostsService {
       throw new ForbiddenException('게시글을 수정할 권한이 없습니다');
     }
 
-    Object.assign(post, updatePostDto);
+    const { tags: tagNames, ...postData } = updatePostDto;
+
+    // 기본 필드 업데이트
+    Object.assign(post, postData);
+
+    // 태그 처리
+    if (tagNames !== undefined) {
+      // 기존 태그 사용 횟수 감소
+      if (post.tags && post.tags.length > 0) {
+        await this.tagsService.decrementUseCount(post.tags.map((t) => t.id));
+      }
+
+      // 새 태그 설정
+      if (tagNames.length > 0) {
+        const tags = await this.tagsService.findOrCreateMany(tagNames);
+        post.tags = tags;
+        await this.tagsService.incrementUseCount(tags.map((t) => t.id));
+      } else {
+        post.tags = [];
+      }
+    }
+
     return this.postRepository.save(post);
   }
 

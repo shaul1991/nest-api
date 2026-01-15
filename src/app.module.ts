@@ -17,6 +17,8 @@ import { CommentsModule } from './comments/comments.module';
 import { LikesModule } from './likes/likes.module';
 import { AnalyticsModule } from './analytics/analytics.module';
 import { SearchModule } from './search/search.module';
+import { TagsModule } from './tags/tags.module';
+import { UploadModule } from './upload/upload.module';
 import { JwtAuthGuard } from './auth/guards/jwt-auth.guard';
 import { RolesGuard } from './auth/guards/roles.guard';
 import { validate } from './config/env.validation';
@@ -91,6 +93,8 @@ import elasticsearchConfig from './config/elasticsearch.config';
     LikesModule,
     AnalyticsModule,
     SearchModule,
+    TagsModule,
+    UploadModule,
   ],
   controllers: [AppController],
   providers: [
