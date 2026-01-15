@@ -20,6 +20,7 @@ const getAllowedOrigins = (): string[] => {
       'https://api-nest.shaul.link',
     ],
     development: [
+      'https://dev-commu.shaul.link',
       'https://dev-api-nest.shaul.link',
       'http://localhost:3000',
       'http://localhost:3001',
