@@ -19,6 +19,7 @@ import { AnalyticsModule } from './analytics/analytics.module';
 import { SearchModule } from './search/search.module';
 import { TagsModule } from './tags/tags.module';
 import { UploadModule } from './upload/upload.module';
+import { ChannelsModule } from './channels/channels.module';
 import { JwtAuthGuard } from './auth/guards/jwt-auth.guard';
 import { RolesGuard } from './auth/guards/roles.guard';
 import { validate } from './config/env.validation';
@@ -95,6 +96,7 @@ import elasticsearchConfig from './config/elasticsearch.config';
     SearchModule,
     TagsModule,
     UploadModule,
+    ChannelsModule,
   ],
   controllers: [AppController],
   providers: [

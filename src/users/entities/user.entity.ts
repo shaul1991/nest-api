@@ -43,6 +43,18 @@ export class User {
   @Column({ name: 'display_name', length: 50, nullable: true })
   displayName: string;
 
+  @Column({ length: 50, nullable: true, unique: true })
+  username: string;
+
+  @Column({ type: 'text', nullable: true })
+  bio: string;
+
+  @Column({ name: 'follower_count', default: 0 })
+  followerCount: number;
+
+  @Column({ name: 'following_count', default: 0 })
+  followingCount: number;
+
   @CreateDateColumn({ name: 'created_at' })
   createdAt: Date;
 
