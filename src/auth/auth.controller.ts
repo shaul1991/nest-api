@@ -407,7 +407,7 @@ export class AuthController {
       httpOnly: true,
       secure: isProduction,
       sameSite: isProduction ? 'strict' : 'lax',
-      path: '/api/v1/auth',
+      path: '/auth',
       maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
     });
   }
@@ -417,7 +417,7 @@ export class AuthController {
       httpOnly: true,
       secure: this.configService.get<string>('NODE_ENV') === 'production',
       sameSite: 'strict',
-      path: '/api/v1/auth',
+      path: '/auth',
       maxAge: 0,
     });
   }
