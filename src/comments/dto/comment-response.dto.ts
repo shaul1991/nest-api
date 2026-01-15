@@ -30,6 +30,15 @@ export class CommentResponseDto {
   @ApiPropertyOptional({ description: '부모 댓글 ID (대댓글인 경우)' })
   parentId?: string | null;
 
+  @ApiProperty({ description: '좋아요 수', default: 0 })
+  likeCount: number;
+
+  @ApiProperty({ description: '현재 사용자의 좋아요 여부', default: false })
+  isLiked: boolean;
+
+  @ApiProperty({ description: '삭제된 댓글 여부', default: false })
+  isDeleted: boolean;
+
   @ApiProperty({ description: '생성 일시' })
   createdAt: Date;
 
@@ -44,6 +53,14 @@ export class CommentResponseDto {
     type: () => [CommentResponseDto],
   })
   replies?: CommentResponseDto[];
+}
+
+export class CommentLikeToggleResponseDto {
+  @ApiProperty({ description: '좋아요 여부' })
+  isLiked: boolean;
+
+  @ApiProperty({ description: '좋아요 수' })
+  likeCount: number;
 }
 
 export class CommentListResponseDto {

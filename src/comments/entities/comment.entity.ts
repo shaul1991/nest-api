@@ -31,6 +31,12 @@ export class Comment {
   @Column({ name: 'parent_id', nullable: true })
   parentId: string | null;
 
+  @Column({ name: 'like_count', default: 0 })
+  likeCount: number;
+
+  @Column({ name: 'is_deleted', default: false })
+  isDeleted: boolean;
+
   @CreateDateColumn({ name: 'created_at' })
   createdAt: Date;
 

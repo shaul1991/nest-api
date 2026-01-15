@@ -1,5 +1,6 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
+import { DataSource } from 'typeorm';
 import {
   NotFoundException,
   ForbiddenException,
@@ -7,6 +8,7 @@ import {
 } from '@nestjs/common';
 import { CommentsService } from './comments.service';
 import { Comment } from './entities/comment.entity';
+import { CommentLike } from './entities/comment-like.entity';
 
 describe('CommentsService', () => {
   let service: CommentsService;
@@ -20,6 +22,32 @@ describe('CommentsService', () => {
     count: jest.fn(),
   };
 
+  const mockCommentLikeRepository = {
+    create: jest.fn(),
+    save: jest.fn(),
+    find: jest.fn(),
+    findOne: jest.fn(),
+    remove: jest.fn(),
+  };
+
+  const mockQueryRunner = {
+    connect: jest.fn(),
+    startTransaction: jest.fn(),
+    commitTransaction: jest.fn(),
+    rollbackTransaction: jest.fn(),
+    release: jest.fn(),
+    manager: {
+      save: jest.fn(),
+      remove: jest.fn(),
+      increment: jest.fn(),
+      decrement: jest.fn(),
+    },
+  };
+
+  const mockDataSource = {
+    createQueryRunner: jest.fn().mockReturnValue(mockQueryRunner),
+  };
+
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
       providers: [
@@ -27,6 +55,14 @@ describe('CommentsService', () => {
         {
           provide: getRepositoryToken(Comment),
           useValue: mockCommentRepository,
+        },
+        {
+          provide: getRepositoryToken(CommentLike),
+          useValue: mockCommentLikeRepository,
+        },
+        {
+          provide: DataSource,
+          useValue: mockDataSource,
         },
       ],
     }).compile();
@@ -51,6 +87,8 @@ describe('CommentsService', () => {
     postId: 'post-1',
     authorId: 'user-1',
     parentId: null,
+    likeCount: 0,
+    isDeleted: false,
     createdAt: new Date(),
     updatedAt: new Date(),
     author: mockUser,
@@ -140,6 +178,7 @@ describe('CommentsService', () => {
         parentComment,
         childComment,
       ]);
+      mockCommentLikeRepository.find.mockResolvedValue([]);
 
       const result = await service.findAllByPostId('post-1');
 
@@ -150,11 +189,24 @@ describe('CommentsService', () => {
 
     it('should return empty list when no comments', async () => {
       mockCommentRepository.find.mockResolvedValue([]);
+      mockCommentLikeRepository.find.mockResolvedValue([]);
 
       const result = await service.findAllByPostId('post-1');
 
       expect(result.data).toHaveLength(0);
       expect(result.total).toBe(0);
+    });
+
+    it('should mark isLiked for comments liked by current user', async () => {
+      const comment = { ...mockComment, id: 'comment-1' };
+      mockCommentRepository.find.mockResolvedValue([comment]);
+      mockCommentLikeRepository.find.mockResolvedValue([
+        { commentId: 'comment-1' },
+      ]);
+
+      const result = await service.findAllByPostId('post-1', 'user-1');
+
+      expect(result.data[0].isLiked).toBe(true);
     });
   });
 
@@ -266,6 +318,79 @@ describe('CommentsService', () => {
       expect(mockCommentRepository.count).toHaveBeenCalledWith({
         where: { postId: 'post-1' },
       });
+    });
+  });
+
+  describe('toggleLike', () => {
+    it('should add like when not liked', async () => {
+      mockCommentRepository.findOne
+        .mockResolvedValueOnce(mockComment) // findByIdOrFail
+        .mockResolvedValueOnce({ ...mockComment, likeCount: 1 }); // after toggle
+      mockCommentLikeRepository.findOne.mockResolvedValue(null);
+      mockCommentLikeRepository.create.mockReturnValue({
+        commentId: 'comment-1',
+        userId: 'user-1',
+      });
+
+      const result = await service.toggleLike('comment-1', 'user-1');
+
+      expect(result.isLiked).toBe(true);
+      expect(result.likeCount).toBe(1);
+      expect(mockQueryRunner.commitTransaction).toHaveBeenCalled();
+    });
+
+    it('should remove like when already liked', async () => {
+      const existingLike = {
+        id: 'like-1',
+        commentId: 'comment-1',
+        userId: 'user-1',
+      };
+      mockCommentRepository.findOne
+        .mockResolvedValueOnce(mockComment) // findByIdOrFail
+        .mockResolvedValueOnce({ ...mockComment, likeCount: 0 }); // after toggle
+      mockCommentLikeRepository.findOne.mockResolvedValue(existingLike);
+
+      const result = await service.toggleLike('comment-1', 'user-1');
+
+      expect(result.isLiked).toBe(false);
+      expect(result.likeCount).toBe(0);
+      expect(mockQueryRunner.manager.remove).toHaveBeenCalledWith(existingLike);
+    });
+
+    it('should throw NotFoundException when comment not found', async () => {
+      mockCommentRepository.findOne.mockResolvedValue(null);
+
+      await expect(
+        service.toggleLike('non-existent', 'user-1'),
+      ).rejects.toThrow(NotFoundException);
+    });
+
+    it('should rollback on error', async () => {
+      mockCommentRepository.findOne.mockResolvedValue(mockComment);
+      mockCommentLikeRepository.findOne.mockResolvedValue(null);
+      mockQueryRunner.manager.save.mockRejectedValue(new Error('DB Error'));
+
+      await expect(service.toggleLike('comment-1', 'user-1')).rejects.toThrow();
+      expect(mockQueryRunner.rollbackTransaction).toHaveBeenCalled();
+      expect(mockQueryRunner.release).toHaveBeenCalled();
+    });
+  });
+
+  describe('isLiked', () => {
+    it('should return true when user liked the comment', async () => {
+      mockCommentLikeRepository.findOne.mockResolvedValue({ id: 'like-1' });
+
+      const result = await service.isLiked('comment-1', 'user-1');
+
+      expect(result).toBe(true);
+    });
+
+    it('should return false when user has not liked the comment', async () => {
+      mockCommentLikeRepository.findOne.mockResolvedValue(null);
+
+      const result = await service.isLiked('comment-1', 'user-1');
+
+      expect(result).toBe(false);
     });
   });
 });

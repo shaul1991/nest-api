@@ -2,7 +2,7 @@ import {
   Controller,
   Get,
   Post as HttpPost,
-  Put,
+  Patch,
   Delete,
   Body,
   Param,
@@ -30,6 +30,7 @@ import {
   UpdateCommentDto,
   CommentResponseDto,
   CommentListResponseDto,
+  CommentLikeToggleResponseDto,
 } from './dto';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { User } from '../users/entities/user.entity';
@@ -80,11 +81,12 @@ export class CommentsController {
   })
   async findAll(
     @Param('postId', ParseUUIDPipe) postId: string,
+    @CurrentUser() user?: User,
   ): Promise<CommentListResponseDto> {
-    return this.commentsService.findAllByPostId(postId);
+    return this.commentsService.findAllByPostId(postId, user?.id);
   }
 
-  @Put('comments/:id')
+  @Patch('comments/:id')
   @ApiBearerAuth('access-token')
   @ApiOperation({
     summary: '댓글 수정',
@@ -130,5 +132,26 @@ export class CommentsController {
     @CurrentUser() user: User,
   ): Promise<void> {
     return this.commentsService.remove(id, user.id);
+  }
+
+  @HttpPost('comments/:id/like')
+  @ApiBearerAuth('access-token')
+  @ApiOperation({
+    summary: '댓글 좋아요 토글',
+    description: '댓글에 좋아요를 추가하거나 취소합니다.',
+  })
+  @ApiParam({ name: 'id', description: '댓글 ID', type: 'string' })
+  @ApiResponse({
+    status: 200,
+    description: '좋아요 토글 성공',
+    type: CommentLikeToggleResponseDto,
+  })
+  @ApiUnauthorizedResponse({ description: '인증되지 않은 요청' })
+  @ApiNotFoundResponse({ description: '댓글을 찾을 수 없음' })
+  async toggleLike(
+    @Param('id', ParseUUIDPipe) id: string,
+    @CurrentUser() user: User,
+  ): Promise<CommentLikeToggleResponseDto> {
+    return this.commentsService.toggleLike(id, user.id);
   }
 }
