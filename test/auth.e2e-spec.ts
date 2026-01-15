@@ -31,8 +31,7 @@ process.env.KAKAO_CLIENT_SECRET =
   process.env.KAKAO_CLIENT_SECRET || 'test-kakao-secret';
 process.env.KAKAO_CALLBACK_URL =
   process.env.KAKAO_CALLBACK_URL || 'http://localhost:3000/auth/kakao';
-process.env.GITHUB_CLIENT_ID =
-  process.env.GITHUB_CLIENT_ID || 'test-github-id';
+process.env.GITHUB_CLIENT_ID = process.env.GITHUB_CLIENT_ID || 'test-github-id';
 process.env.GITHUB_CLIENT_SECRET =
   process.env.GITHUB_CLIENT_SECRET || 'test-github-secret';
 process.env.GITHUB_CALLBACK_URL =
@@ -211,7 +210,9 @@ describe('Auth Module (e2e)', () => {
 
     userRepository = moduleFixture.get(getRepositoryToken(User));
     roleRepository = moduleFixture.get(getRepositoryToken(Role));
-    oauthAccountRepository = moduleFixture.get(getRepositoryToken(OAuthAccount));
+    oauthAccountRepository = moduleFixture.get(
+      getRepositoryToken(OAuthAccount),
+    );
     jwtService = moduleFixture.get(JwtService);
     configService = moduleFixture.get(ConfigService);
     cacheManager = moduleFixture.get(CACHE_MANAGER);
@@ -645,8 +646,14 @@ describe('Auth Module (e2e)', () => {
         await oauthAccountRepository.save(oauthAccount);
 
         // 사용자 삭제
-        await userRepository.query('DELETE FROM oauth_accounts WHERE user_id = $1', [user.id]);
-        await userRepository.query('DELETE FROM user_roles WHERE user_id = $1', [user.id]);
+        await userRepository.query(
+          'DELETE FROM oauth_accounts WHERE user_id = $1',
+          [user.id],
+        );
+        await userRepository.query(
+          'DELETE FROM user_roles WHERE user_id = $1',
+          [user.id],
+        );
         await userRepository.delete(user.id);
 
         // OAuth 계정도 삭제되었는지 확인
@@ -678,8 +685,12 @@ describe('Auth Module (e2e)', () => {
         });
 
         expect(accounts).toHaveLength(2);
-        expect(accounts.map((a: OAuthAccount) => a.provider)).toContain(OAuthProvider.GITHUB);
-        expect(accounts.map((a: OAuthAccount) => a.provider)).toContain(OAuthProvider.GOOGLE);
+        expect(accounts.map((a: OAuthAccount) => a.provider)).toContain(
+          OAuthProvider.GITHUB,
+        );
+        expect(accounts.map((a: OAuthAccount) => a.provider)).toContain(
+          OAuthProvider.GOOGLE,
+        );
       });
     });
 
