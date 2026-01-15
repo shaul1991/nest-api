@@ -23,10 +23,13 @@ describe('PostsController', () => {
     authorId: 'user-uuid',
     viewCount: 0,
     likeCount: 0,
+    images: [],
+    referenceUrl: undefined,
     createdAt: new Date(),
     updatedAt: new Date(),
     author: mockUser as User,
     comments: [],
+    tags: [],
   };
 
   beforeEach(async () => {
@@ -67,7 +70,8 @@ describe('PostsController', () => {
     it('새 게시글을 생성해야 함', async () => {
       const expectedPost = {
         ...mockPost,
-        ...createPostDto,
+        title: createPostDto.title,
+        content: createPostDto.content,
       };
       postsService.create.mockResolvedValue(expectedPost);
 

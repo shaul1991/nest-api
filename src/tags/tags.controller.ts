@@ -5,14 +5,12 @@ import {
   DefaultValuePipe,
   ParseIntPipe,
 } from '@nestjs/common';
-import {
-  ApiTags,
-  ApiOperation,
-  ApiQuery,
-  ApiResponse,
-} from '@nestjs/swagger';
+import { ApiTags, ApiOperation, ApiQuery, ApiResponse } from '@nestjs/swagger';
 import { TagsService } from './tags.service';
-import { TagSuggestResponseDto, TagPopularResponseDto } from './dto/tag-response.dto';
+import {
+  TagSuggestResponseDto,
+  TagPopularResponseDto,
+} from './dto/tag-response.dto';
 import { Public } from '../auth/decorators/public.decorator';
 
 @ApiTags('Tags')

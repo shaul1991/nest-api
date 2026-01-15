@@ -37,10 +37,10 @@ export class Post {
   likeCount: number;
 
   @Column({ type: 'text', array: true, nullable: true })
-  images: string[];
+  images?: string[];
 
   @Column({ name: 'reference_url', length: 500, nullable: true })
-  referenceUrl: string;
+  referenceUrl?: string;
 
   @CreateDateColumn({ name: 'created_at' })
   createdAt: Date;

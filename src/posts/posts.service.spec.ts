@@ -10,7 +10,6 @@ import { TagsService } from '../tags/tags.service';
 describe('PostsService', () => {
   let postsService: PostsService;
   let postRepository: jest.Mocked<Repository<Post>>;
-  let tagsService: jest.Mocked<TagsService>;
 
   const mockAuthor: Partial<User> = {
     id: 'author-uuid',
@@ -27,7 +26,7 @@ describe('PostsService', () => {
     viewCount: 0,
     likeCount: 0,
     images: [],
-    referenceUrl: null,
+    referenceUrl: undefined,
     createdAt: new Date(),
     updatedAt: new Date(),
     author: mockAuthor as User,
@@ -67,7 +66,6 @@ describe('PostsService', () => {
 
     postsService = module.get<PostsService>(PostsService);
     postRepository = module.get(getRepositoryToken(Post));
-    tagsService = module.get(TagsService);
   });
 
   afterEach(() => {
