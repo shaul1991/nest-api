@@ -32,6 +32,8 @@ import {
   PostResponseDto,
   PostListQueryDto,
   PostListResponseDto,
+  TrendingQueryDto,
+  TrendingPostDto,
 } from './dto';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { User } from '../users/entities/user.entity';
@@ -80,6 +82,23 @@ export class PostsController {
     @Query() query: PostListQueryDto,
   ): Promise<PostListResponseDto> {
     return this.postsService.findAll(query);
+  }
+
+  @Get('trending')
+  @Public()
+  @ApiOperation({
+    summary: '트렌딩 게시글 조회',
+    description: '기간별 인기 게시글을 조회합니다.',
+  })
+  @ApiResponse({
+    status: 200,
+    description: '트렌딩 게시글 조회 성공',
+    type: [TrendingPostDto],
+  })
+  async getTrending(
+    @Query() query: TrendingQueryDto,
+  ): Promise<TrendingPostDto[]> {
+    return this.postsService.getTrending(query);
   }
 
   @Get(':id')

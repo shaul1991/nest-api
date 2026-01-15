@@ -10,6 +10,8 @@ import { CreatePostDto } from './dto/create-post.dto';
 import { UpdatePostDto } from './dto/update-post.dto';
 import { PostListQueryDto, PostSortType } from './dto/post-list-query.dto';
 import { PostListResponseDto } from './dto/post-list-response.dto';
+import { TrendingQueryDto, TrendingPeriod } from './dto/trending-query.dto';
+import { TrendingPostDto } from './dto/trending-response.dto';
 import { TagsService } from '../tags/tags.service';
 
 @Injectable()
@@ -288,5 +290,108 @@ export class PostsService {
     }
 
     await this.postRepository.remove(post);
+  }
+
+  /**
+   * 트렌딩 게시글 조회
+   * 기간별로 인기도(좋아요, 조회수, 댓글 수) 기반 정렬
+   */
+  async getTrending(query: TrendingQueryDto): Promise<TrendingPostDto[]> {
+    const { period = TrendingPeriod.TODAY, limit = 10 } = query;
+
+    const startDate = this.getStartDateByPeriod(period);
+
+    const queryBuilder = this.postRepository
+      .createQueryBuilder('post')
+      .leftJoinAndSelect('post.author', 'author')
+      .leftJoinAndSelect('post.tags', 'tags')
+      .loadRelationCountAndMap('post.commentCount', 'post.comments');
+
+    // 기간 필터 적용 (all이 아닌 경우)
+    if (startDate) {
+      queryBuilder.where('post.createdAt >= :startDate', { startDate });
+    }
+
+    // 트렌딩 점수 기반 정렬: 좋아요 * 3 + 조회수 + (최신성 보너스)
+    queryBuilder
+      .orderBy('post.likeCount', 'DESC')
+      .addOrderBy('post.viewCount', 'DESC')
+      .addOrderBy('post.createdAt', 'DESC')
+      .take(limit);
+
+    const posts = await queryBuilder.getMany();
+
+    return this.mapToTrendingDto(posts);
+  }
+
+  /**
+   * 기간에 따른 시작 날짜 계산
+   */
+  private getStartDateByPeriod(period: TrendingPeriod): Date | null {
+    const now = new Date();
+
+    switch (period) {
+      case TrendingPeriod.TODAY:
+        return new Date(now.getFullYear(), now.getMonth(), now.getDate());
+
+      case TrendingPeriod.WEEK: {
+        const weekAgo = new Date(now);
+        weekAgo.setDate(weekAgo.getDate() - 7);
+        return weekAgo;
+      }
+
+      case TrendingPeriod.MONTH: {
+        const monthAgo = new Date(now);
+        monthAgo.setMonth(monthAgo.getMonth() - 1);
+        return monthAgo;
+      }
+
+      case TrendingPeriod.ALL:
+      default:
+        return null;
+    }
+  }
+
+  /**
+   * Post 엔티티를 TrendingPostDto로 변환
+   */
+  private mapToTrendingDto(posts: Post[]): TrendingPostDto[] {
+    return posts.map((post, index) => ({
+      id: post.id,
+      title: post.title,
+      content:
+        post.content.length > 200
+          ? post.content.substring(0, 200) + '...'
+          : post.content,
+      author: post.author?.displayName || '익명',
+      channel: post.tags && post.tags.length > 0 ? post.tags[0].name : '일반',
+      upvotes: post.likeCount,
+      downvotes: 0, // 현재 싫어요 기능 미구현
+      comments: (post as Post & { commentCount?: number }).commentCount || 0,
+      createdAt: this.formatRelativeTime(post.createdAt),
+      trending: index < 3, // 상위 3개는 trending으로 표시
+    }));
+  }
+
+  /**
+   * 상대적 시간 표시 (한국어)
+   */
+  private formatRelativeTime(date: Date): string {
+    const now = new Date();
+    const diff = now.getTime() - new Date(date).getTime();
+    const seconds = Math.floor(diff / 1000);
+    const minutes = Math.floor(seconds / 60);
+    const hours = Math.floor(minutes / 60);
+    const days = Math.floor(hours / 24);
+
+    if (days > 0) {
+      return `${days}일 전`;
+    } else if (hours > 0) {
+      return `${hours}시간 전`;
+    } else if (minutes > 0) {
+      return `${minutes}분 전`;
+    } else {
+      return '방금 전';
+    }
   }
 }

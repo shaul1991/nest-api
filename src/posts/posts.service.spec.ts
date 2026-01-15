@@ -6,6 +6,7 @@ import { PostsService } from './posts.service';
 import { Post } from './entities/post.entity';
 import { User } from '../users/entities/user.entity';
 import { TagsService } from '../tags/tags.service';
+import { TrendingPeriod } from './dto/trending-query.dto';
 
 describe('PostsService', () => {
   let postsService: PostsService;
@@ -35,6 +36,16 @@ describe('PostsService', () => {
   };
 
   beforeEach(async () => {
+    const mockQueryBuilder = {
+      leftJoinAndSelect: jest.fn().mockReturnThis(),
+      loadRelationCountAndMap: jest.fn().mockReturnThis(),
+      where: jest.fn().mockReturnThis(),
+      orderBy: jest.fn().mockReturnThis(),
+      addOrderBy: jest.fn().mockReturnThis(),
+      take: jest.fn().mockReturnThis(),
+      getMany: jest.fn().mockResolvedValue([]),
+    };
+
     const mockPostRepository = {
       findOne: jest.fn(),
       findAndCount: jest.fn(),
@@ -42,6 +53,7 @@ describe('PostsService', () => {
       save: jest.fn(),
       remove: jest.fn(),
       increment: jest.fn(),
+      createQueryBuilder: jest.fn().mockReturnValue(mockQueryBuilder),
     };
 
     const mockTagsService = {
@@ -289,6 +301,95 @@ describe('PostsService', () => {
       await expect(
         postsService.remove('post-uuid', 'other-user-uuid'),
       ).rejects.toThrow(ForbiddenException);
+    });
+  });
+
+  describe('getTrending', () => {
+    const mockTrendingPost: Post = {
+      ...mockPost,
+      likeCount: 10,
+      viewCount: 100,
+      tags: [
+        { id: 'tag-1', name: 'react', useCount: 5, createdAt: new Date() },
+      ] as any,
+    };
+
+    it('기본 설정으로 트렌딩 게시글을 조회해야 함', async () => {
+      const mockQueryBuilder = postRepository.createQueryBuilder();
+      (mockQueryBuilder.getMany as jest.Mock).mockResolvedValue([
+        mockTrendingPost,
+      ]);
+
+      const result = await postsService.getTrending({});
+
+      expect(result).toHaveLength(1);
+      expect(result[0].id).toBe(mockTrendingPost.id);
+      expect(result[0].title).toBe(mockTrendingPost.title);
+      expect(result[0].upvotes).toBe(mockTrendingPost.likeCount);
+      expect(result[0].channel).toBe('react');
+      expect(result[0].trending).toBe(true); // 상위 3개 내이므로 trending
+    });
+
+    it('period가 today이면 오늘 날짜 필터를 적용해야 함', async () => {
+      const mockQueryBuilder = postRepository.createQueryBuilder();
+      (mockQueryBuilder.getMany as jest.Mock).mockResolvedValue([]);
+
+      await postsService.getTrending({ period: TrendingPeriod.TODAY });
+
+      expect(mockQueryBuilder.where).toHaveBeenCalledWith(
+        'post.createdAt >= :startDate',
+        expect.objectContaining({
+          startDate: expect.any(Date),
+        }),
+      );
+    });
+
+    it('period가 all이면 날짜 필터를 적용하지 않아야 함', async () => {
+      const mockQueryBuilder = postRepository.createQueryBuilder();
+      (mockQueryBuilder.getMany as jest.Mock).mockResolvedValue([]);
+
+      await postsService.getTrending({ period: TrendingPeriod.ALL });
+
+      expect(mockQueryBuilder.where).not.toHaveBeenCalled();
+    });
+
+    it('limit을 정확히 적용해야 함', async () => {
+      const mockQueryBuilder = postRepository.createQueryBuilder();
+      (mockQueryBuilder.getMany as jest.Mock).mockResolvedValue([]);
+
+      await postsService.getTrending({ limit: 5 });
+
+      expect(mockQueryBuilder.take).toHaveBeenCalledWith(5);
+    });
+
+    it('태그가 없는 게시글의 채널은 "일반"이어야 함', async () => {
+      const postWithoutTags = { ...mockTrendingPost, tags: [] };
+      const mockQueryBuilder = postRepository.createQueryBuilder();
+      (mockQueryBuilder.getMany as jest.Mock).mockResolvedValue([
+        postWithoutTags,
+      ]);
+
+      const result = await postsService.getTrending({});
+
+      expect(result[0].channel).toBe('일반');
+    });
+
+    it('상위 3개만 trending 플래그가 true여야 함', async () => {
+      const posts = Array.from({ length: 5 }, (_, i) => ({
+        ...mockTrendingPost,
+        id: `post-${i}`,
+        tags: [],
+      }));
+      const mockQueryBuilder = postRepository.createQueryBuilder();
+      (mockQueryBuilder.getMany as jest.Mock).mockResolvedValue(posts);
+
+      const result = await postsService.getTrending({ limit: 5 });
+
+      expect(result[0].trending).toBe(true);
+      expect(result[1].trending).toBe(true);
+      expect(result[2].trending).toBe(true);
+      expect(result[3].trending).toBe(false);
+      expect(result[4].trending).toBe(false);
     });
   });
 });

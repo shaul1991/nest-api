@@ -5,6 +5,8 @@ import { PostsService } from './posts.service';
 import { Post } from './entities/post.entity';
 import { User } from '../users/entities/user.entity';
 import { PostSortType } from './dto/post-list-query.dto';
+import { TrendingPeriod } from './dto/trending-query.dto';
+import { TrendingPostDto } from './dto/trending-response.dto';
 
 describe('PostsController', () => {
   let controller: PostsController;
@@ -39,6 +41,7 @@ describe('PostsController', () => {
       findByIdWithViewIncrement: jest.fn(),
       update: jest.fn(),
       remove: jest.fn(),
+      getTrending: jest.fn(),
     };
 
     const module: TestingModule = await Test.createTestingModule({
@@ -301,6 +304,81 @@ describe('PostsController', () => {
       await expect(
         controller.remove('post-uuid', otherUser as User),
       ).rejects.toThrow(ForbiddenException);
+    });
+  });
+
+  describe('getTrending', () => {
+    const mockTrendingPosts: TrendingPostDto[] = [
+      {
+        id: 'trending-1',
+        title: '트렌딩 게시글 1',
+        content: '인기 있는 내용',
+        author: 'TestUser',
+        channel: 'react',
+        upvotes: 100,
+        downvotes: 0,
+        comments: 50,
+        createdAt: '2시간 전',
+        trending: true,
+      },
+      {
+        id: 'trending-2',
+        title: '트렌딩 게시글 2',
+        content: '두 번째 인기 게시글',
+        author: 'AnotherUser',
+        channel: 'typescript',
+        upvotes: 80,
+        downvotes: 0,
+        comments: 30,
+        createdAt: '3시간 전',
+        trending: true,
+      },
+    ];
+
+    it('기본 설정으로 트렌딩 게시글을 반환해야 함', async () => {
+      postsService.getTrending.mockResolvedValue(mockTrendingPosts);
+
+      const result = await controller.getTrending({});
+
+      expect(result).toEqual(mockTrendingPosts);
+      expect(postsService.getTrending).toHaveBeenCalledWith({});
+    });
+
+    it('period 파라미터를 전달해야 함', async () => {
+      postsService.getTrending.mockResolvedValue(mockTrendingPosts);
+
+      const query = { period: TrendingPeriod.WEEK };
+      await controller.getTrending(query);
+
+      expect(postsService.getTrending).toHaveBeenCalledWith(query);
+    });
+
+    it('limit 파라미터를 전달해야 함', async () => {
+      postsService.getTrending.mockResolvedValue(mockTrendingPosts);
+
+      const query = { limit: 5 };
+      await controller.getTrending(query);
+
+      expect(postsService.getTrending).toHaveBeenCalledWith(query);
+    });
+
+    it('period와 limit 모두 전달해야 함', async () => {
+      postsService.getTrending.mockResolvedValue(mockTrendingPosts);
+
+      const query = { period: TrendingPeriod.MONTH, limit: 20 };
+      await controller.getTrending(query);
+
+      expect(postsService.getTrending).toHaveBeenCalledWith(query);
+    });
+
+    it('빈 배열을 반환할 수 있어야 함', async () => {
+      postsService.getTrending.mockResolvedValue([]);
+
+      const result = await controller.getTrending({
+        period: TrendingPeriod.TODAY,
+      });
+
+      expect(result).toEqual([]);
     });
   });
 });
